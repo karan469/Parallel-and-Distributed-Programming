@@ -15,57 +15,67 @@ char algo;
 
 void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 	cout<<"Hello\n";
-	long i,j,k,rows,mymin,mymax,colmax,k_;
-	int pid=0;
-	int nprocs;
+	int k;
 	for(int k=0;k<n;k++){
-		#pragma omp parallel shared(A, n, nprocs) private(i, j, k, pid, rows, mymin, mymax, colmax, k_)
-		{
-			nprocs = omp_get_num_threads();
-			pid = omp_get_thread_num();
-			for(int i=k;i<n;i++){
-				if(colmax<abs(A[i][k])){colmax = A[i][k];k_ = i;}
-			}
-			if(colmax==0){cerr<<"Singular Matrix\n";}
-			//swap
-			pi[k] += pi[k_];
-			pi[k_] = pi[k] - pi[k_];
-			pi[k] -= pi[k_];
-			cerr<<"(Thread "<<pid<<") K = "<<k<<"; K_ = "<<k_<<"\n";
+		long i,j,rows,mymin,mymax,colmax;
+		int pid=0;
+		int nprocs;
+		int temp;
 
-			#pragma omp for 
+		nprocs = omp_get_num_threads();
+		pid = omp_get_thread_num();
+		int k_ = 0;
+		colmax = 0;
+		for(int i=k;i<n;i++){
+			if(colmax<abs(A[i][k])){colmax = A[i][k];k_ = i;}
+		}
+		if(colmax==0){cerr<<"Singular Matrix\n";}
+		
+		//swap
+		pi[k] += pi[k_];
+		pi[k_] = pi[k] - pi[k_];
+		pi[k] -= pi[k_];
+
+		// cerr<<"(Thread "<<pid<<") K = "<<k<<"; K_ = "<<k_<<"\n";
+		#pragma omp parallel default(none) shared(A, l, u, n, nprocs) private(i, j, k, pid, rows, mymin, mymax, colmax, k_)
+		{
+			#pragma omp for
+			for(i=0;i<n;i++){
+				#pragma omp critical
+				{
+					double temp = A[k][i];
+					A[k][i] = A[k_][i];
+					A[k_][i] = temp;
+				}
+			}
+
+			#pragma omp for
+			for(i=0;i<k-1;i++){
+				l[k][i] += l[k_][i];
+				l[k_][i] = l[k][i]-l[k_][i];
+				l[k][i] -= l[k_][i];
+			}
+			
+			u[k][k] = A[k][k];
+			
+			#pragma omp for
+			for(i=k;i<n;i++){
+				l[i][k] = A[i][k]/u[k][k];
+				u[k][i] = A[k][i];
+			}
+			
+			// #pragma omp for collapse(2)
+			for(i=k;i<n;i++){
+				// #pragma omp for
+				for(j=k;j<n;j++){
+					// #pragma omp critical
+					// {
+						A[i][j] -= l[i][k]*u[k][j];
+					// }
+				}
+			}
 		}
 	}
-	// #pragma omp parallel shared(A, n, nprocs) private(i, j, k, pid, rows, mymin, mymax, colmax, k_)
-	// {
-	// 	nprocs = omp_get_num_threads();
-	// 	pid = omp_get_thread_num();
-
-	// 	rows = n/nprocs;
-	// 	mymin = pid * rows;
-	// 	mymax = mymin + rows - 1;
-	// 	if(pid==nprocs-1 && (n-(mymax+1))>0) mymax=n-1;
-
-	// 	for(k=0;k<n;k++){ // k-th coloumn
-	// 		if(k>=mymin && k<=mymax){
-	// 			colmax = 0;	
-	// 			for(int i=k;i<n;i++){
-	// 				if(colmax<abs(A[i][k])){colmax = abs(A[i][k]);k_ = i;}
-	// 			}
-	// 			if(colmax==0){cerr<<"Singular Matrix\n";}
-
-	// 			//swap pi[k] and pi[k_]
-	// 			#pragma omp critical
-	// 			{
-	// 				// pi[k] += pi[k_];
-	// 				// pi[k_] = pi[k] - pi[k_];
-	// 				// pi[k] -= pi[k_];
-	// 				// cerr<<"(Thread "<<pid<<") K = "<<k<<"; K_ = "<<k_<<"\n";
-	// 			}
-
-	// 		}
-	// 	}
-	// }
 }
 
 void initializeVersion1(double **A, long n){
@@ -82,8 +92,8 @@ void initializeVersion2(double **A,long n){
 	srand48((unsigned int)time(NULL));
 	long i,j, k;
 	for(i=0;i<n;i++){
-		for(j=i;j<n;j++){
-			 if(i==j){A[i][j]=1;}
+		for(j=0;j<n;j++){
+			if(i==j){A[i][j]=1;}
             else if(j>i){A[i][j]=0;}
             else{A[i][j]=drand48();}
 		}
@@ -94,7 +104,7 @@ void initializeVersion3(double **A,long n){
 	srand48((unsigned int)time(NULL));
 	long i,j, k;
 	for(i=0;i<n;i++){
-		for(j=i;j<n;j++){
+		for(j=0;j<n;j++){
 			if(i<=j){A[i][j] = drand48();}
             else{A[i][j]=0;}
 		}
@@ -153,7 +163,9 @@ int main(int argc, char** argv){
 	begin = clock();
 
 	decomposeOpenMP(matrix,l, u, pi, matrix_size);
-	// printmatrix(matrix, matrix_size);
+	printmatrix(matrix, matrix_size);
+	// printmatrix(l, matrix_size);
+	// printmatrix(u, matrix_size);
 
 	end = clock();
 	duration = ((double)(end - begin)) / CLOCKS_PER_SEC;
