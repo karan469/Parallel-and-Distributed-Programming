@@ -13,17 +13,67 @@ void printmatrix(double **A, long n);
 long matrix_size;
 char algo;
 
-void decomposeOpenMP(double **A, double **l, double **u, long n){
-	cout<<"Hello";
+void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
+	cout<<"Hello\n";
+	long i,j,k,rows,mymin,mymax,colmax,k_;
+	int pid=0;
+	int nprocs;
+	for(int k=0;k<n;k++){
+		#pragma omp parallel shared(A, n, nprocs) private(i, j, k, pid, rows, mymin, mymax, colmax, k_)
+		{
+			nprocs = omp_get_num_threads();
+			pid = omp_get_thread_num();
+			for(int i=k;i<n;i++){
+				if(colmax<abs(A[i][k])){colmax = A[i][k];k_ = i;}
+			}
+			if(colmax==0){cerr<<"Singular Matrix\n";}
+			//swap
+			pi[k] += pi[k_];
+			pi[k_] = pi[k] - pi[k_];
+			pi[k] -= pi[k_];
+			cerr<<"(Thread "<<pid<<") K = "<<k<<"; K_ = "<<k_<<"\n";
+
+			#pragma omp for 
+		}
+	}
+	// #pragma omp parallel shared(A, n, nprocs) private(i, j, k, pid, rows, mymin, mymax, colmax, k_)
+	// {
+	// 	nprocs = omp_get_num_threads();
+	// 	pid = omp_get_thread_num();
+
+	// 	rows = n/nprocs;
+	// 	mymin = pid * rows;
+	// 	mymax = mymin + rows - 1;
+	// 	if(pid==nprocs-1 && (n-(mymax+1))>0) mymax=n-1;
+
+	// 	for(k=0;k<n;k++){ // k-th coloumn
+	// 		if(k>=mymin && k<=mymax){
+	// 			colmax = 0;	
+	// 			for(int i=k;i<n;i++){
+	// 				if(colmax<abs(A[i][k])){colmax = abs(A[i][k]);k_ = i;}
+	// 			}
+	// 			if(colmax==0){cerr<<"Singular Matrix\n";}
+
+	// 			//swap pi[k] and pi[k_]
+	// 			#pragma omp critical
+	// 			{
+	// 				// pi[k] += pi[k_];
+	// 				// pi[k_] = pi[k] - pi[k_];
+	// 				// pi[k] -= pi[k_];
+	// 				// cerr<<"(Thread "<<pid<<") K = "<<k<<"; K_ = "<<k_<<"\n";
+	// 			}
+
+	// 		}
+	// 	}
+	// }
 }
 
-void initializeVersion1(double **A, long n)
-{
+void initializeVersion1(double **A, long n){
 	srand48((unsigned int)time(NULL));
 	long i, j;
 	for (i=0;i<n;i++){
 		for (j=0;j<n;j++){
-            A[i][j] = drand48();
+            A[i][j] = 100*drand48();
 		}
 	}
 }
@@ -45,13 +95,18 @@ void initializeVersion3(double **A,long n){
 	long i,j, k;
 	for(i=0;i<n;i++){
 		for(j=i;j<n;j++){
-			 if(i==j){A[i][j] = drand48();}
-            else if(j>i){A[i][j] = drand48();}
+			if(i<=j){A[i][j] = drand48();}
             else{A[i][j]=0;}
 		}
 	}
 }
 
+void initializeVersion4(int *A, long n){
+	long i;
+	for(i=0;i<n;i++){
+		A[i] = i;
+	}
+}
 
 double **getMatrix(long size,int version)
 {
@@ -65,6 +120,7 @@ double **getMatrix(long size,int version)
 		break;
 	case 3: //U
 		initializeVersion3(m, size);
+		break;
 	default:
 		printf("INVALID VERSION NUMBERee\n");
 		exit(0);
@@ -84,15 +140,20 @@ int main(int argc, char** argv){
     // printf("%d\n", matrix_size);
     
     double **matrix=getMatrix(matrix_size,1);
-	// double **l = getMatrix(matrix_size, 2);
-	// double **u = getMatrix(matrix_size, 3);
+	double **l = getMatrix(matrix_size, 2);
+	double **u = getMatrix(matrix_size, 3);
+	
+	int *pi;
+	pi = (int*)malloc(matrix_size*sizeof(int*));
+	pi = (int*)malloc(matrix_size*sizeof(int));
+	initializeVersion4(pi, matrix_size);
 
     clock_t begin, end;
 	double duration;
 	begin = clock();
 
-	// decomposeOpenMP(matrix,l, u, matrix_size);
-	printmatrix(matrix, matrix_size);
+	decomposeOpenMP(matrix,l, u, pi, matrix_size);
+	// printmatrix(matrix, matrix_size);
 
 	end = clock();
 	duration = ((double)(end - begin)) / CLOCKS_PER_SEC;
@@ -106,8 +167,8 @@ int main(int argc, char** argv){
 	printf("\n**********************************\n\n");
 
     free2dmatrix(matrix,matrix_size);
-	// free2dmatrix(l, matrix_size);
-	// free2dmatrix(u, matrix_size);
+	free2dmatrix(l, matrix_size);
+	free2dmatrix(u, matrix_size);
     return 0;
 }
 
