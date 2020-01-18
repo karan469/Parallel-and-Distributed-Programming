@@ -4,6 +4,7 @@
 #include <time.h>
 #include <chrono>
 
+// #define matrix_size 3
 using namespace std;
 
 double **make2dmatrix(long n);
@@ -140,7 +141,7 @@ void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 			u[k][k] = colmax;
 			
 			#pragma omp for
-			for(long i=k;i<n;i++){
+			for(long i=k+1;i<n;i++){
 				// l[i][k] = A[i][k]/u[k][k];
 				l[i][k] = A[i][k]/colmax;
 				u[k][i] = A[k][i];
@@ -156,6 +157,29 @@ void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 		}
 	}
 }
+
+double **vec2Matrix(){
+double **m;
+
+	m = (double**)malloc(3*sizeof(double*));
+	for (int i=0;i<3;i++)
+		m[i] = (double*)malloc(3*sizeof(double));
+
+	m[0][0]=10.000; 
+	m[0][1]=-7.000; 
+	m[0][2]=0.000; 
+	m[1][0]=-3.000; 
+	m[1][1]=2.000; 
+	m[1][2]=6.000; 
+	m[2][0]=5.000; 
+	m[2][1]=-1.000; 
+	m[2][2]=5.000; 
+
+	return m;
+
+}
+
+
 
 //initialize A matrix
 void initializeVersion1(double **A, long n){
@@ -282,13 +306,14 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 		}
 		// cout<<"\n";
 	}
-	long gsum = 0;
+	long double gsum = 0;
 	for(long i=0;i<size;i++){
-		long sum = 0;
+		long double sum = 0;
 		for(long j=0;j<size;j++){
 			sum += mult1[i][j]*mult1[i][j];
 		}
 		gsum += sqrt(sum);
+		cout << "Gsum is " << gsum << "\n";
 	}
 	free2dmatrix(mult1,size);
 	free2dmatrix(mult2,size);
@@ -309,6 +334,7 @@ int main(int argc, char** argv){
 	double **matrix=getMatrix(matrix_size,1);
 	double **l = getMatrix(matrix_size, 2);
 	double **u = getMatrix(matrix_size, 3);
+	double **checker = vec2Matrix();
 	
 	//Original A matrix stored
 	double **origMatrix = getMatrix(matrix_size, 1);
@@ -331,7 +357,7 @@ int main(int argc, char** argv){
 	//main function starts here
 	decomposeOpenMP(matrix,l, u, pi, matrix_size);
 	// serialDecompose(matrix,l, u, pi, matrix_size);
-	// printmatrix(matrix, matrix_size);
+	// printmatrix(origMatrix, matrix_size);
 	// cerr<<"\nL Matrix:\n";
 	// printmatrix(l, matrix_size);
 	// cerr<<"\nU Matrix:\n";
@@ -354,6 +380,7 @@ int main(int argc, char** argv){
 
 	//Freeing 2dm atrices
     free2dmatrix(matrix,matrix_size);
+    // free2dmatrix(checker,matrix_size);
 	free2dmatrix(l, matrix_size);
 	free2dmatrix(u, matrix_size);
     return 0;
