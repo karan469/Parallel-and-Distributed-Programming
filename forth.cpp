@@ -43,12 +43,12 @@ void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 			A[k_][i] = temp;
 		}
 
-		long gte;
-		for(long i=0;i<k-1;i++){
+		
+		for(long i=0;i<k;i++){ //dwijesh
 			// l[k][i] += l[k_][i];
 			// l[k_][i] = l[k][i]-l[k_][i];
 			// l[k][i] -= l[k_][i];
-			gte = l[k][i];
+			double gte = l[k][i];
 			l[k][i] = l[k_][i];
 			l[k_][i] = gte;
 		}
@@ -56,28 +56,28 @@ void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 		u[k][k] = A[k][k];
 		
 		for(long i=k+1;i<n;i++){
-			l[i][k] = A[i][k]/u[k][k];
+			l[i][k] = A[i][k]/u[k][k]; //u(k,k) = max actually
 			u[k][i] = A[k][i];
 		}
 		
 		for(long i=k+1;i<n;i++){
 			// #pragma omp for
 			for(long j=k+1;j<n;j++){
-				A[i][j] -= l[i][k]*u[k][j];
+				A[i][j] = A[i][j] - l[i][k]*u[k][j];
 			}
-		}
+		}	
 	}
 }
 
 //Openmp parallel code for decomposing. Input - A(n, n) | Output - pi(n), L(n, n), U(n, n)
 void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 	cout<<"Hello\n";
-	int k;
-	for(int k=0;k<n;k++){
-		long i,j,rows,mymin,mymax,colmax;
-		int pid=0;
-		int nprocs;
-		int temp;
+	// int k;
+	for(long k=0;k<n;k++){
+		long rows,mymin,mymax,colmax;
+		// int pid=0;
+		// int nprocs;
+		// int temp;
 		int k_;
 		colmax = 0;
 		for(int i=k;i<n;i++){
@@ -86,16 +86,41 @@ void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 		if(colmax==0){cerr<<"Singular Matrix\n";}
 		
 		//swap
-		temp = pi[k];
+		int temp = pi[k];
 		pi[k] = pi[k_];
 		pi[k_] = temp;
 
-		#pragma omp parallel default(none) shared(A, l, u, n, nprocs) private(i, j, k, pid, rows, mymin, mymax, colmax, k_)
+		#pragma omp parallel default(none) shared(A, l, u, n, colmax, k, k_)
 		{
 			// nprocs = omp_get_num_threads();
 			// pid = omp_get_thread_num();
-			#pragma omp for
-			for(i=0;i<n;i++){
+			// #pragma omp sections
+			// {
+			// 	#pragma omp section
+			// 	{
+			// 		#pragma omp for nowait //no wait can be implemented
+			// 		for(long i=0;i<n;i++){
+			// 			#pragma omp critical
+			// 			{
+			// 				double temp = A[k][i];
+			// 				A[k][i] = A[k_][i];
+			// 				A[k_][i] = temp;
+			// 			}
+			// 		}		
+			// 	}
+
+			// 	#pragma omp section
+			// 	{
+			// 		#pragma omp for
+			// 		for(long i=0;i<k;i++){
+			// 			double gte = l[k][i];
+			// 			l[k][i] = l[k_][i];
+			// 			l[k_][i] = gte;
+			// 		}
+			// 	}
+			// }
+			#pragma omp for nowait //no wait can be implemented
+			for(long i=0;i<n;i++){
 				#pragma omp critical
 				{
 					double temp = A[k][i];
@@ -105,25 +130,26 @@ void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 			}
 
 			#pragma omp for
-			for(i=0;i<k-1;i++){
-				l[k][i] += l[k_][i];
-				l[k_][i] = l[k][i]-l[k_][i];
-				l[k][i] -= l[k_][i];
+			for(long i=0;i<k;i++){
+				double gte = l[k][i];
+				l[k][i] = l[k_][i];
+				l[k_][i] = gte;
 			}
-			
-			u[k][k] = A[k][k];
+
+
+			u[k][k] = colmax;
 			
 			#pragma omp for
-			for(i=k;i<n;i++){
-				l[i][k] = A[i][k]/u[k][k];
+			for(long i=k;i<n;i++){
+				// l[i][k] = A[i][k]/u[k][k];
+				l[i][k] = A[i][k]/colmax;
 				u[k][i] = A[k][i];
 			}
 			
-			// #pragma omp for collapse(2)
-			#pragma omp for
-			for(i=k+1;i<n;i++){
+			#pragma omp for collapse(2)
+			for(long i=k+1;i<n;i++){
 				// #pragma omp for
-				for(j=k+1;j<n;j++){
+				for(long j=k+1;j<n;j++){
 					A[i][j] -= l[i][k]*u[k][j];
 				}
 			}
@@ -140,6 +166,15 @@ void initializeVersion1(double **A, long n){
             A[i][j] = abs(100*drand48());
 		}
 	}
+	// A[0][0] = 1;
+	// A[0][1] = 2;
+	// A[0][2] = 3;
+	// A[1][0] = 3;
+	// A[1][1] = 1;
+	// A[1][2] = 2;
+	// A[2][0] = 2;
+	// A[2][1] = 3;
+	// A[2][2] = 1;
 }
 
 //initialize L matrix
@@ -149,8 +184,8 @@ void initializeVersion2(double **A,long n){
 	for(i=0;i<n;i++){
 		for(j=0;j<n;j++){
 			if(i==j){A[i][j]=1;}
-            else if(j>i){A[i][j]=0;}
-            else{A[i][j]=abs(100*drand48());}
+            else{A[i][j]=0;}
+            // else{A[i][j]=0;} //make 0 - dwijesh
 		}
 	}
 }
@@ -161,8 +196,9 @@ void initializeVersion3(double **A,long n){
 	long i,j, k;
 	for(i=0;i<n;i++){
 		for(j=0;j<n;j++){
-			if(i<=j){A[i][j] = abs(100*drand48());}
-            else{A[i][j]=0;}
+			// if(i<=j){A[i][j] = abs(100*drand48());}
+            // else{A[i][j]=0;}
+			A[i][j] = 0;
 		}
 	}
 }
@@ -204,12 +240,13 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 		}
 		P[i][pi[i]] = 1;
 	}
-	cout<<"PI MATRIX: \n";
-	for(int i=0;i<size;i++){
-		cout<<pi[i]<<" ";
-	}
-	cout<<"\n";
+	// cout<<"PI MATRIX: \n";
+	// for(int i=0;i<size;i++){
+	// 	cout<<pi[i]<<" ";
+	// }
+	// cout<<"\n";
 
+	// cerr<<"\nP matrix:\n";
 	// printmatrix(P, size);
 
 	double **mult1 = make2dmatrix(size);
@@ -220,8 +257,8 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
                 mult1[i][j] += P[i][k] * A[k][j];
             }
 	
-	cout<<"\nP*A matrix ->\n";
-	printmatrix(mult1, size);
+	// cout<<"\nP*A matrix ->\n";
+	// printmatrix(mult1, size);
 
 	double **mult2 = make2dmatrix(size);
 	for(long i = 0; i < size; i++)
@@ -235,8 +272,8 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 		// cout<<"\n";
 	}
 
-	cout<<"\nL*U Matrix ->\n";
-	printmatrix(mult2, size);
+	// cout<<"\nL*U Matrix ->\n";
+	// printmatrix(mult2, size);
 
 	for(long i = 0; i < size; i++)
     {    for(long j = 0; j < size; j++){
@@ -273,6 +310,15 @@ int main(int argc, char** argv){
 	double **l = getMatrix(matrix_size, 2);
 	double **u = getMatrix(matrix_size, 3);
 	
+	//Original A matrix stored
+	double **origMatrix = getMatrix(matrix_size, 1);
+	//recomended - dont use this extra loop for copying
+	for(long p=0;p<matrix_size;p++){
+		for(long w=0;w<matrix_size;w++){
+			origMatrix[p][w] = matrix[p][w];
+		}
+	}
+	
 	int *pi;
 	pi = (int*)malloc(matrix_size*sizeof(int*));
 	pi = (int*)malloc(matrix_size*sizeof(int));
@@ -283,10 +329,12 @@ int main(int argc, char** argv){
 	double start = omp_get_wtime();
 
 	//main function starts here
-	// decomposeOpenMP(matrix,l, u, pi, matrix_size);
-	serialDecompose(matrix,l, u, pi, matrix_size);
+	decomposeOpenMP(matrix,l, u, pi, matrix_size);
+	// serialDecompose(matrix,l, u, pi, matrix_size);
 	// printmatrix(matrix, matrix_size);
+	// cerr<<"\nL Matrix:\n";
 	// printmatrix(l, matrix_size);
+	// cerr<<"\nU Matrix:\n";
 	// printmatrix(u, matrix_size);
 
 	double end = omp_get_wtime(); 
@@ -302,7 +350,7 @@ int main(int argc, char** argv){
 	printf("\n**********************************\n\n");
 
 	//Checking the value of residual matrix i.e. L2,1 norm of (PA-LU)
-	checkAns(pi, matrix, l, u, matrix_size);
+	checkAns(pi, origMatrix, l, u, matrix_size);
 
 	//Freeing 2dm atrices
     free2dmatrix(matrix,matrix_size);
