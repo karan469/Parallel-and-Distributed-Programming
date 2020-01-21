@@ -306,7 +306,7 @@ int main(int argc, char** argv){
 	printf("\n**********************************\n\n");
 
 	//Checking the value of residual matrix i.e. L2,1 norm of (PA-LU)
-	checkAns(pi, origMatrix, l, u, matrix_size);
+	// checkAns(pi, origMatrix, l, u, matrix_size);
 
 	//Freeing 2dm atrices
     free2dmatrix(matrix,matrix_size);
