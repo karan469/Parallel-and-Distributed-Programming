@@ -1,5 +1,6 @@
-#include <bits/stdc++.h>
+#include "stdc++.h"
 #include <pthread.h>
+#include <omp.h>
 #include<stdlib.h>
 #include <time.h>
 #include <chrono>
@@ -18,6 +19,7 @@ struct thread_data{
 	int *pi;
 	long n;
 	long loop_var;
+	long swap_var;
 };
 
 double **make2dmatrix(long n);
@@ -25,8 +27,6 @@ void free2dmatrix(double ** M, long n);
 void printmatrix(double **A, long n);
 void* multi(void* arg);
 
-
-long matrix_size;
 char algo;
 
 void serialDecompose(double **A, double **l, double **u, int *pi, long n){
@@ -91,16 +91,18 @@ void *multi(void *arg){
 	struct thread_data *t = (struct thread_data *) arg;
 
 	for(long i=core*(matrix_size/NUM_OF_THREADS);i<(core+1)*(matrix_size/NUM_OF_THREADS);i++){
-		double temp = t->A[k][i];
-		t->A[k][i] = t->A[k_][i];
-		t->A[k_][i] = temp;
+		double temp = t->A[t->loop_var][i];
+		t->A[t->loop_var][i] = t->A[t->swap_var][i];
+		t->A[t->swap_var][i] = temp;
 	}
 
 	for(long i=core*(t->loop_var/NUM_OF_THREADS);i<(core+1)*(t->loop_var/NUM_OF_THREADS);i++){
-		double gte = t->l[k][i];
-		t->l[k][i] = t->l[k_][i];
-		t->l[k_][i] = gte;
+		double gte = t->l[t->loop_var][i];
+		t->l[t->loop_var][i] = t->l[t->swap_var][i];
+		t->l[t->swap_var][i] = gte;
 	}
+
+	pthread_exit(NULL);
 		
 }
 
@@ -127,12 +129,13 @@ struct thread_data decomposePthread(double **A, double **l, double **u, int *pi,
 		pi[k] = pi[k_];
 		pi[k_] = temp;
 
-			td.A = A;
-			td.l = l;
-			td.u = u;
-			td.pi = pi;
-			td.n = n;	
-			td.loop_var = k;
+		td.A = A;
+		td.l = l;
+		td.u = u;
+		td.pi = pi;
+		td.n = n;	
+		td.loop_var = k;
+		td.swap_var = k_;
 
 		for(int i=0;i<NUM_OF_THREADS;i++){
 			int rc = pthread_create(&threads[i], NULL, multi, (void *)&td);
@@ -164,6 +167,7 @@ struct thread_data decomposePthread(double **A, double **l, double **u, int *pi,
 	}
 
 	return td;
+}
 
 //Openmp parallel code for decomposing. Input - A(n, n) | Output - pi(n), L(n, n), U(n, n)
 void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
