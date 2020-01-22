@@ -8,26 +8,32 @@
 // #define matrix_size 3
 using namespace std;
 
-int step_i=0;
+int step_i=-1;
 int NUM_OF_THREADS;
 int matrix_size;
+double **A,**l,**u;
+int *pi;
+long n;
+
 
 struct thread_data{
-	double **A;
-	double **l;
-	double **u;
-	int *pi;
-	long n;
-	long loop_var;
-	long swap_var;
+int loop_var;
+int swap_var;
+int core;
 };
 
-double **make2dmatrix(long n);
-void free2dmatrix(double ** M, long n);
-void printmatrix(double **A, long n);
+double **make2dmatrix();
+void free2dmatrix(double ** M);
+void printmatrix(double **A, long size);
 void* multi(void* arg);
 
 char algo;
+
+void vec2Matrix(){
+	
+
+
+}
 
 void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 	cout<<"Hello\n";
@@ -87,57 +93,82 @@ void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 }
 
 void *multi(void *arg){
-	int core = step_i++;
+	// int core = step_i++;
+	// printf("%d\n",core);
 	struct thread_data *t = (struct thread_data *) arg;
 
-	for(long i=core*(matrix_size/NUM_OF_THREADS);i<(core+1)*(matrix_size/NUM_OF_THREADS);i++){
-		double temp = t->A[t->loop_var][i];
-		t->A[t->loop_var][i] = t->A[t->swap_var][i];
-		t->A[t->swap_var][i] = temp;
+	// printf("%d %d\n",t->loop_var,t->swap_var);
+
+	// printf("%d %d",core*(n/NUM_OF_THREADS),(core+1)*(n/NUM_OF_THREADS));
+
+	for(long i=(t->core)*(n/NUM_OF_THREADS);i<(t->core+1)*(n/NUM_OF_THREADS);i++){
+		double temp = A[t->loop_var][i];
+		A[t->loop_var][i] = A[t->swap_var][i];
+		A[t->swap_var][i] = temp;
 	}
 
-	for(long i=core*(t->loop_var/NUM_OF_THREADS);i<(core+1)*(t->loop_var/NUM_OF_THREADS);i++){
-		double gte = t->l[t->loop_var][i];
-		t->l[t->loop_var][i] = t->l[t->swap_var][i];
-		t->l[t->swap_var][i] = gte;
+	for(long i=(t->core)*(t->loop_var/NUM_OF_THREADS);i<(t->core+1)*(t->loop_var/NUM_OF_THREADS);i++){
+		double gte = l[t->loop_var][i];
+		l[t->loop_var][i] = l[t->swap_var][i];
+		l[t->swap_var][i] = gte;
 	}
+	// cout << "A" << endl;
+	// printmatrix(A,n);
+	// cout << "L" << endl;
+	// printmatrix(l,n);
+	// cout << "U" << endl;
+	// printmatrix(u,n);
 
 	pthread_exit(NULL);
 		
 }
 
-struct thread_data decomposePthread(double **A, double **l, double **u, int *pi, long n){
+void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
     pthread_t threads[NUM_OF_THREADS];
 	struct thread_data td;
 	
 	cout<<"Hello\n";
+
+	// printmatrix(A, n);
+	// printmatrix(l, n);
+	// printmatrix(u, n);
+
+
 	// int k;
 	for(long k=0;k<n;k++){
 		long rows,mymin,mymax,colmax;
 		// int pid=0;
 		// int nprocs;
 		// int temp;
+
 		int k_;
 		colmax = 0;
 		for(int i=k;i<n;i++){
 			if(colmax<abs(A[i][k])){colmax = A[i][k];k_ = i;}
 		}
-		if(colmax==0){cerr<<"Singular Matrix\n";}
+
+		// if(colmax==0){cerr<<"Singular Matrix\n";}
 		
 		//swap
 		int temp = pi[k];
 		pi[k] = pi[k_];
 		pi[k_] = temp;
 
-		td.A = A;
-		td.l = l;
-		td.u = u;
-		td.pi = pi;
-		td.n = n;	
+		// printmatrix(l,n);
+		// printmatrix(u,n);
+
 		td.loop_var = k;
 		td.swap_var = k_;
 
+		// cout << "Reached " << endl;
+
+		// printmatrix(A, n);
+
+		int core = -1;
+			
 		for(int i=0;i<NUM_OF_THREADS;i++){
+			core++;
+			td.core = core;
 			int rc = pthread_create(&threads[i], NULL, multi, (void *)&td);
 
 			if(rc){
@@ -150,23 +181,23 @@ struct thread_data decomposePthread(double **A, double **l, double **u, int *pi,
 			pthread_join(threads[i],NULL);
 		}
 
-		td.u[k][k] = td.A[k][k];
+		u[k][k] = A[k][k];
 		
 		for(long i=k+1;i<n;i++){
-			td.l[i][k] = td.A[i][k]/td.u[k][k]; //u(k,k) = max actually
-			td.u[k][i] = td.A[k][i];
+			l[i][k] = A[i][k]/u[k][k]; //u(k,k) = max actually
+			u[k][i] = A[k][i];
 		}
 		
 		for(long i=k+1;i<n;i++){
 			// #pragma omp for
 			for(long j=k+1;j<n;j++){
-				td.A[i][j] = td.A[i][j] - (td.l[i][k])*(td.u[k][j]);
+				A[i][j] = A[i][j] - (l[i][k])*(u[k][j]);
 			}
 		}
 
 	}
 
-	return td;
+	// return td;
 }
 
 //Openmp parallel code for decomposing. Input - A(n, n) | Output - pi(n), L(n, n), U(n, n)
@@ -281,12 +312,12 @@ double **m;
 
 
 //initialize A matrix
-void initializeVersion1(double **A, long n){
+void initializeVersion1(double **a, long n){
 	srand48((unsigned int)time(NULL));
 	long i, j;
 	for (i=0;i<n;i++){
 		for (j=0;j<n;j++){
-            A[i][j] = abs(100*drand48());
+            a[i][j] = abs(100*drand48());
 		}
 	}
 	// A[0][0] = 1;
@@ -301,43 +332,43 @@ void initializeVersion1(double **A, long n){
 }
 
 //initialize L matrix
-void initializeVersion2(double **A,long n){
+void initializeVersion2(double **a,long n){
 	srand48((unsigned int)time(NULL));
 	long i,j, k;
 	for(i=0;i<n;i++){
 		for(j=0;j<n;j++){
-			if(i==j){A[i][j]=1;}
-            else{A[i][j]=0;}
+			if(i==j){a[i][j]=1;}
+            else{a[i][j]=0;}
             // else{A[i][j]=0;} //make 0 - dwijesh
 		}
 	}
 }
 
 //initialize U matrix
-void initializeVersion3(double **A,long n){
+void initializeVersion3(double **a,long n){
 	srand48((unsigned int)time(NULL));
 	long i,j, k;
 	for(i=0;i<n;i++){
 		for(j=0;j<n;j++){
 			// if(i<=j){A[i][j] = abs(100*drand48());}
             // else{A[i][j]=0;}
-			A[i][j] = 0;
+			a[i][j] = 0;
 		}
 	}
 }
 
 //initialize pi  matrix
-void initializeVersion4(int *A, long n){
+void initializeVersion4(int *a, long n){
 	long i;
 	for(i=0;i<n;i++){
-		A[i] = i;
+		a[i] = i;
 	}
 }
 
 //get matrix A/L/U/pi
 double **getMatrix(long size,int version)
 {
-	double **m=make2dmatrix(size); //allocated
+	double **m=make2dmatrix(); //allocated
 	switch(version){
 	case 1: //A
 		initializeVersion1(m,size);
@@ -355,8 +386,8 @@ double **getMatrix(long size,int version)
 	return m;
 }
 
-void checkAns(int *pi, double **A, double **l, double **u, long size){
-	double **P = make2dmatrix(size);
+void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
+	double **P = make2dmatrix();
 	for(int i=0;i<size;i++){
 		for(int j=0;j<size;j++){
 			P[i][j] = 0;
@@ -372,7 +403,7 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 	// cerr<<"\nP matrix:\n";
 	// printmatrix(P, size);
 
-	double **mult1 = make2dmatrix(size);
+	double **mult1 = make2dmatrix();
 	for(long i = 0; i < size; i++)
         for(long j = 0; j < size; j++)
             for(long k = 0; k < size; k++)
@@ -383,7 +414,7 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 	// cout<<"\nP*A matrix ->\n";
 	// printmatrix(mult1, size);
 
-	double **mult2 = make2dmatrix(size);
+	double **mult2 = make2dmatrix();
 	for(long i = 0; i < size; i++)
     {    for(long j = 0; j < size; j++)
         {    for(long k = 0; k < size; k++)
@@ -414,18 +445,19 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 		gsum += sqrt(sum);
 		// cout << "Gsum is " << gsum << "\n";
 	}
-	free2dmatrix(mult1,size);
-	free2dmatrix(mult2,size);
+	free2dmatrix(mult1);
+	free2dmatrix(mult2);
 	cout<<"Check sum: "<<gsum<<"\n";
 }
 
 int main(int argc, char** argv){
     srand48((unsigned int)time(NULL));
-    matrix_size = strtol(argv[1], NULL, 10);
-    long thread_count = strtol(argv[2], NULL, 10);
+    n = strtol(argv[1], NULL, 10);
+    int thread_count = strtol(argv[2], NULL, 10);
 	NUM_OF_THREADS = thread_count;
+	// printf("Thread count is %d",NUM_OF_THREADS);
     int rc;
-	struct thread_data td;
+	// struct thread_data td;
 
     if(thread_count<1){
 		thread_count=5;
@@ -436,67 +468,73 @@ int main(int argc, char** argv){
     // printf("%d\n", matrix_size);
 
     //initialization of matrices
-	double **matrix=getMatrix(matrix_size,1);
-	double **l = getMatrix(matrix_size, 2);
-	double **u = getMatrix(matrix_size, 3);
+	// A=getMatrix(n,1);
+	A = hardMatrix();
+	// printmatrix(A,n);
+	l = getMatrix(n, 2);
+	// printmatrix(l,n);
+	u = getMatrix(n, 3);
+	// printmatrix(u,n);
+
 	// double **checker = vec2Matrix();
 	
 	//Original A matrix stored
-	double **origMatrix = getMatrix(matrix_size, 1);
+	double **origMatrix = getMatrix(n, 1);
 	//recomended - dont use this extra loop for copying
-	for(long p=0;p<matrix_size;p++){
-		for(long w=0;w<matrix_size;w++){
+	for(long p=0;p<n;p++){
+		for(long w=0;w<n;w++){
 			// origMatrix[p][w] = matrix[p][w];
-			origMatrix[p][w] = matrix[p][w];
+			origMatrix[p][w] = A[p][w];
 
 		}
 	}
 	
-	int *pi;
-	pi = (int*)malloc(matrix_size*sizeof(int*));
-	pi = (int*)malloc(matrix_size*sizeof(int));
-	initializeVersion4(pi, matrix_size);
+	// int *pi;
+	pi = (int*)malloc(n*sizeof(int*));
+	pi = (int*)malloc(n*sizeof(int));
+	initializeVersion4(pi, n);
 
     // clock_t begin, end;
 	double duration;
 	double start = omp_get_wtime();
 
 	//main function starts here
-	td = decomposePthread(matrix,l, u, pi, matrix_size);
+	// decomposePthread(/*A,l, u, pi, matrix_size*/);
+	decomposePthread();
 	// decomposeOpenMP(checker,l, u, pi, matrix_size);
 
 	// serialDecompose(matrix,l, u, pi, matrix_size);
-	// printmatrix(origMatrix, matrix_size);
+	// printmatrix(origMatrix, n);
 	// cerr<<"\nL Matrix:\n";
-	// printmatrix(td.l, matrix_size);
+	// printmatrix(l, n);
 	// cerr<<"\nU Matrix:\n";
-	// printmatrix(td.u, matrix_size);
+	// printmatrix(u, n);
 
 	double end = omp_get_wtime(); 
 	duration = ((double)(end - start));
 
 	//Printing results
     printf("\n**********************************\n\n");
-	printf("Algo selected :%s\n","OpenMP");
-	printf("Size of Matrix :%lu \n",matrix_size);
-	printf("Number of Procs : %lu\n",thread_count);
+	printf("Algo selected :%s\n","Pthread");
+	printf("Size of Matrix :%lu \n",n);
+	printf("Number of Procs : %lu\n",NUM_OF_THREADS);
 	// printf("%s",check(matrix,matrix_size,version)==1? "DECOMPOSE SUCCESSFULL\n":"DECOMPOSE FAIL\n");
 	printf("DECOMPOSE TIME TAKEN : %f seconds\n",duration);
 	printf("\n**********************************\n\n");
 
 	//Checking the value of residual matrix i.e. L2,1 norm of (PA-LU)
-	checkAns(td.pi, origMatrix, td.l, td.u, matrix_size);
+	checkAns(n);
 
 	//Freeing 2dm atrices
-    free2dmatrix(td.A,matrix_size);
+    free2dmatrix(A);
     // free2dmatrix(checker,matrix_size);
-	free2dmatrix(td.l, matrix_size);
-	free2dmatrix(td.u, matrix_size);
+	free2dmatrix(l);
+	free2dmatrix(u);
     return 0;
 }
 
 //Allocate mem space for a 2-D matrix
-double **make2dmatrix(long n)
+double **make2dmatrix()
 {
 	long i;
 	double **m;
@@ -507,19 +545,19 @@ double **make2dmatrix(long n)
 }
 
 // only works for dynamic arrays:
-void printmatrix(double **A, long n)
+void printmatrix(double **M, long size)
 {
 	printf("\n *************** MATRIX ****************\n\n");
 	long i, j;
-	for (i=0;i<n;i++)
+	for (i=0;i<size;i++)
 	{
-		for (j=0;j<n;j++)
-			printf("%f ",A[i][j]);
+		for (j=0;j<size;j++)
+			printf("%f ",M[i][j]);
 		printf("\n");
 	}
 }
 
-void free2dmatrix(double ** M, long n)
+void free2dmatrix(double ** M)
 {
 	long i;
 	if (!M) return;
