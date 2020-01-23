@@ -11,7 +11,7 @@ using namespace std;
 int step_i=-1;
 int NUM_OF_THREADS;
 int matrix_size;
-double **A,**l,**u;
+double **A,**l,**u,**origMatrix;
 int *pi;
 long n;
 
@@ -70,10 +70,10 @@ void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 			l[k_][i] = gte;
 		}
 		
-		u[k][k] = A[k][k];
+		u[k][k] = colmax;
 		
 		for(long i=k+1;i<n;i++){
-			l[i][k] = A[i][k]/u[k][k]; //u(k,k) = max actually
+			l[i][k] = (double)(A[i][k]/colmax); //u(k,k) = max actually
 			u[k][i] = A[k][i];
 		}
 		
@@ -99,7 +99,7 @@ void *multi(void *arg){
 	// 	// cout << (t->core*n)/(NUM_OF_THREADS) << " " << ((t->core+1)*n)/(NUM_OF_THREADS) << endl;
 	// }
 
-	cout <<t->loop_var << ":" << t->core << endl;
+	// cout <<t->loop_var << ":" << t->core << endl;
 
 	for(long i=((t->core*n)/(NUM_OF_THREADS));i<(((t->core+1)*n)/(NUM_OF_THREADS));i++){
 		double temp = A[t->loop_var][i];
@@ -118,10 +118,45 @@ void *multi(void *arg){
 	// printmatrix(l,n);
 	// cout << "U" << endl;
 	// printmatrix(u,n);
+	// cout<<"PI MATRIX: \n";
+	// for(long i=0;i<n;i++){
+	// 	cout<<pi[i]<<" ";
+	// }
 
 	pthread_exit(NULL);
 		
 }
+
+void *multi2(void *arg){
+	// int core = step_i++;
+	// printf("%d\n",core);
+	struct thread_data *t = (struct thread_data *) arg;
+
+	for(long i=((t->loop_var+1) + (((n-t->loop_var-1)*t->core)/NUM_OF_THREADS));i<((t->loop_var+1) + (((n-t->loop_var-1)*(t->core+1))/NUM_OF_THREADS));i++){
+		l[i][t->loop_var] = A[i][t->loop_var]/u[t->loop_var][t->loop_var]; //u(k,k) = max actually
+		u[t->loop_var][i] = A[t->loop_var][i];
+	}
+
+	pthread_exit(NULL);
+		
+}
+
+
+void *multi3(void *arg){
+	// int core = step_i++;
+	// printf("%d\n",core);
+	struct thread_data *t = (struct thread_data *) arg;
+
+	for(long i=((t->loop_var+1) + (((n-t->loop_var-1)*t->core)/NUM_OF_THREADS));i<((t->loop_var+1) + (((n-t->loop_var-1)*(t->core+1))/NUM_OF_THREADS));i++){
+		// #pragma omp for
+		for(long j=t->loop_var+1;j<n;j++){
+			A[i][j] = A[i][j] - (l[i][t->loop_var])*(u[t->loop_var][j]);
+		}
+	}
+
+	pthread_exit(NULL);
+		
+}	
 
 void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
     pthread_t threads[NUM_OF_THREADS];
@@ -182,26 +217,66 @@ void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
 		for(int i=0;i<NUM_OF_THREADS;i++){
 			pthread_join(threads[i],NULL);
 		}
-		cerr << "A matrix " << endl;
-		printmatrix(A,n);
-		cerr << "L matrix " << endl;
-		printmatrix(l,n);
-		cerr << "U matrix " << endl;
-		printmatrix(u,n);
+		// cerr << "A matrix " << endl;
+		// printmatrix(A,n);
+		// cerr << "L matrix " << endl;
+		// printmatrix(l,n);
+		// cerr << "U matrix " << endl;
+		// printmatrix(u,n);
 
 		u[k][k] = A[k][k];
-		
-		for(long i=k+1;i<n;i++){
-			l[i][k] = A[i][k]/u[k][k]; //u(k,k) = max actually
-			u[k][i] = A[k][i];
-		}
-		
-		for(long i=k+1;i<n;i++){
-			// #pragma omp for
-			for(long j=k+1;j<n;j++){
-				A[i][j] = A[i][j] - (l[i][k])*(u[k][j]);
+
+		core = -1;
+			
+		for(int i=0;i<NUM_OF_THREADS;i++){
+			td[i].loop_var = k;
+			td[i].swap_var = k_;
+			core++;
+			td[i].core = core;
+			// cout << td.core << endl;
+
+			int rc = pthread_create(&threads[i], NULL, multi2, (void *)&td[i]);
+
+			if(rc){
+				cerr << "Threads not created " << endl;
 			}
 		}
+
+		for(int i=0;i<NUM_OF_THREADS;i++){
+			pthread_join(threads[i],NULL);
+		}
+		
+		core = -1;
+			
+		for(int i=0;i<NUM_OF_THREADS;i++){
+			td[i].loop_var = k;
+			td[i].swap_var = k_;
+			core++;
+			td[i].core = core;
+			// cout << td.core << endl;
+
+			int rc = pthread_create(&threads[i], NULL, multi3, (void *)&td[i]);
+
+			if(rc){
+				cerr << "Threads not created " << endl;
+			}
+		}
+
+		for(int i=0;i<NUM_OF_THREADS;i++){
+			pthread_join(threads[i],NULL);
+		}
+
+		// for(long i=k+1;i<n;i++){
+		// 	l[i][k] = A[i][k]/u[k][k]; //u(k,k) = max actually
+		// 	u[k][i] = A[k][i];
+		// }
+		
+		// for(long i=k+1;i<n;i++){
+		// 	// #pragma omp for
+		// 	for(long j=k+1;j<n;j++){
+		// 		A[i][j] = A[i][j] - (l[i][k])*(u[k][j]);
+		// 	}
+		// }
 
 	}
 
@@ -318,20 +393,20 @@ void initializeVersion1(double **a, long n){
 
 //initialize L matrix
 void initializeVersion2(double **a,long n){
-	srand48((unsigned int)time(NULL));
+	// srand48((unsigned int)time(NULL));
 	long i,j, k;
 	for(i=0;i<n;i++){
 		for(j=0;j<n;j++){
 			if(i==j){a[i][j]=1;}
             else{a[i][j]=0;}
-            // else{A[i][j]=0;} //make 0 - dwijesh
+            // else{A[i][j]=0;} //make 0
 		}
 	}
 }
 
 //initialize U matrix
 void initializeVersion3(double **a,long n){
-	srand48((unsigned int)time(NULL));
+	// srand48((unsigned int)time(NULL));
 	long i,j, k;
 	for(i=0;i<n;i++){
 		for(j=0;j<n;j++){
@@ -372,6 +447,7 @@ double **getMatrix(long size,int version)
 }
 
 void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
+	
 	double **P = make2dmatrix();
 	for(int i=0;i<size;i++){
 		for(int j=0;j<size;j++){
@@ -393,7 +469,7 @@ void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
         for(long j = 0; j < size; j++)
             for(long k = 0; k < size; k++)
             {
-                mult1[i][j] += P[i][k] * A[k][j];
+                mult1[i][j] += P[i][k] * origMatrix[k][j];
             }
 	
 	// cout<<"\nP*A matrix ->\n";
@@ -455,16 +531,16 @@ int main(int argc, char** argv){
     //initialization of matrices
 	A=getMatrix(n,1);
 	// A = hardMatrix();
-	printmatrix(A,n);
+	// printmatrix(A,n);
 	l = getMatrix(n, 2);
-	printmatrix(l,n);
+	// printmatrix(l,n);
 	u = getMatrix(n, 3);
-	printmatrix(u,n);
+	// printmatrix(u,n);
 
 	// double **checker = vec2Matrix();
 	
 	//Original A matrix stored
-	double **origMatrix = getMatrix(n, 1);
+	origMatrix = getMatrix(n, 1);
 	//recomended - dont use this extra loop for copying
 	for(long p=0;p<n;p++){
 		for(long w=0;w<n;w++){
@@ -488,7 +564,7 @@ int main(int argc, char** argv){
 	decomposePthread();
 	// decomposeOpenMP(checker,l, u, pi, matrix_size);
 
-	// serialDecompose(matrix,l, u, pi, matrix_size);
+	// // serialDecompose(matrix,l, u, pi, matrix_size);
 	// printmatrix(origMatrix, n);
 	// cerr<<"\nL Matrix:\n";
 	// printmatrix(l, n);
@@ -512,6 +588,7 @@ int main(int argc, char** argv){
 
 	//Freeing 2dm atrices
     free2dmatrix(A);
+	free2dmatrix(origMatrix);
     // free2dmatrix(checker,matrix_size);
 	free2dmatrix(l);
 	free2dmatrix(u);
