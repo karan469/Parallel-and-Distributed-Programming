@@ -14,7 +14,7 @@ long matrix_size;
 char algo;
 
 void serialDecompose(double **A, double **l, double **u, int *pi, long n){
-	cout<<"Hello\n";
+	// cout<<"Hello\n";
 	
 	for(int k=0;k<n;k++){
 		long rows,colmax;
@@ -71,7 +71,7 @@ void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 
 //Openmp parallel code for decomposing. Input - A(n, n) | Output - pi(n), L(n, n), U(n, n)
 void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
-	cout<<"Hello\n";
+	// cout<<"Hello\n";
 	// int k;
 	for(long k=0;k<n;k++){
 		long rows,mymin,mymax;
