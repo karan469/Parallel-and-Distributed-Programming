@@ -29,12 +29,6 @@ void* multi(void* arg);
 
 char algo;
 
-void vec2Matrix(){
-	
-
-
-}
-
 void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 	cout<<"Hello\n";
 	
@@ -101,13 +95,19 @@ void *multi(void *arg){
 
 	// printf("%d %d",core*(n/NUM_OF_THREADS),(core+1)*(n/NUM_OF_THREADS));
 
-	for(long i=(t->core)*(n/NUM_OF_THREADS);i<(t->core+1)*(n/NUM_OF_THREADS);i++){
+	// if(t->loop_var==1){
+	// 	// cout << (t->core*n)/(NUM_OF_THREADS) << " " << ((t->core+1)*n)/(NUM_OF_THREADS) << endl;
+	// }
+
+	cout <<t->loop_var << ":" << t->core << endl;
+
+	for(long i=((t->core*n)/(NUM_OF_THREADS));i<(((t->core+1)*n)/(NUM_OF_THREADS));i++){
 		double temp = A[t->loop_var][i];
 		A[t->loop_var][i] = A[t->swap_var][i];
 		A[t->swap_var][i] = temp;
 	}
 
-	for(long i=(t->core)*(t->loop_var/NUM_OF_THREADS);i<(t->core+1)*(t->loop_var/NUM_OF_THREADS);i++){
+	for(long i=(t->core*t->loop_var)/(NUM_OF_THREADS);i<((t->core+1)*t->loop_var)/(NUM_OF_THREADS);i++){
 		double gte = l[t->loop_var][i];
 		l[t->loop_var][i] = l[t->swap_var][i];
 		l[t->swap_var][i] = gte;
@@ -125,7 +125,8 @@ void *multi(void *arg){
 
 void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
     pthread_t threads[NUM_OF_THREADS];
-	struct thread_data td;
+	struct thread_data td[NUM_OF_THREADS];
+
 	
 	cout<<"Hello\n";
 
@@ -157,9 +158,6 @@ void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
 		// printmatrix(l,n);
 		// printmatrix(u,n);
 
-		td.loop_var = k;
-		td.swap_var = k_;
-
 		// cout << "Reached " << endl;
 
 		// printmatrix(A, n);
@@ -167,9 +165,13 @@ void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
 		int core = -1;
 			
 		for(int i=0;i<NUM_OF_THREADS;i++){
+			td[i].loop_var = k;
+			td[i].swap_var = k_;
 			core++;
-			td.core = core;
-			int rc = pthread_create(&threads[i], NULL, multi, (void *)&td);
+			td[i].core = core;
+			// cout << td.core << endl;
+
+			int rc = pthread_create(&threads[i], NULL, multi, (void *)&td[i]);
 
 			if(rc){
 				cerr << "Threads not created " << endl;
@@ -180,6 +182,12 @@ void decomposePthread(/*double **A, double **l, double **u, int *pi, long n*/){
 		for(int i=0;i<NUM_OF_THREADS;i++){
 			pthread_join(threads[i],NULL);
 		}
+		cerr << "A matrix " << endl;
+		printmatrix(A,n);
+		cerr << "L matrix " << endl;
+		printmatrix(l,n);
+		cerr << "U matrix " << endl;
+		printmatrix(u,n);
 
 		u[k][k] = A[k][k];
 		
@@ -287,29 +295,6 @@ void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
 		}
 	}
 }
-
-double **vec2Matrix(){
-double **m;
-
-	m = (double**)malloc(3*sizeof(double*));
-	for (int i=0;i<3;i++)
-		m[i] = (double*)malloc(3*sizeof(double));
-
-	m[0][0]=10.000; 
-	m[0][1]=-7.000; 
-	m[0][2]=0.000; 
-	m[1][0]=-3.000; 
-	m[1][1]=2.000; 
-	m[1][2]=6.000; 
-	m[2][0]=5.000; 
-	m[2][1]=-1.000; 
-	m[2][2]=5.000; 
-
-	return m;
-
-}
-
-
 
 //initialize A matrix
 void initializeVersion1(double **a, long n){
@@ -468,13 +453,13 @@ int main(int argc, char** argv){
     // printf("%d\n", matrix_size);
 
     //initialization of matrices
-	// A=getMatrix(n,1);
-	A = hardMatrix();
-	// printmatrix(A,n);
+	A=getMatrix(n,1);
+	// A = hardMatrix();
+	printmatrix(A,n);
 	l = getMatrix(n, 2);
-	// printmatrix(l,n);
+	printmatrix(l,n);
 	u = getMatrix(n, 3);
-	// printmatrix(u,n);
+	printmatrix(u,n);
 
 	// double **checker = vec2Matrix();
 	
