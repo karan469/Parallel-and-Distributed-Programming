@@ -64,8 +64,8 @@ int main(int argc, char const *argv[])
 		
 		for(int f=0;f<num_processes-1;f++){
 			// printf("YOLO\n");
-			MPI_Rsend(A, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
-			MPI_Rsend(B, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm);
+			MPI_irsend(A, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
+			MPI_irsend(B, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm);
 			
 			// int m_line = 0;
 			// for(int k=0;k<N*M/(num_processes-1);k++){
