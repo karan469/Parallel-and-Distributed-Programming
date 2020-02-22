@@ -1,4 +1,4 @@
 compile:
-	mpicc -o check_status.o check_status.c
+	mpicc -o $(input).o $(input).c
 run:
-	mpirun -n 4 ./check_status.o
+	mpirun -n $(num_proc) $(input).o
