@@ -58,22 +58,29 @@ int main(int argc, char const *argv[])
 			C[c] = (float)0;
 		}
 
+		printf("================== MATRIX A ===============\n");
 		printMatrix(A, N, M);
-		// printMatrix(B, M, N);
+		printf("================== MATRIX B ===============\n");
+		printMatrix(B, M, N);
 		// printMatrix(C, M, M);
 		
 		for(int f=0;f<num_processes-1;f++){
-			// printf("YOLO\n");
-			MPI_Rsend(A, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
-			MPI_Rsend(B, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm);
-			
-			// int m_line = 0;
-			// for(int k=0;k<N*M/(num_processes-1);k++){
-			// 	MPI_Rsend(A[], )
-			// }
-			for(int k=0;k<N;k++){
-				MPI_Rsend(A[f*(M/(num_processes-1)) + k*M], (int)(M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
+			A_block = malloc_matrix(N, M/(num_processes-1));
+			B_block = malloc_matrix(M/(num_processes-1), N);
+
+			for(int i=0;i<N*M/2;i++){
+				B_block[i] = B[i + (N*M*f)/2];
 			}
+
+			int counter = 0;
+			for(int i=0;i<N;i++){
+				for(int j = i*M + f*(M/2); j<i*M + (int)(M/2) + f*(M/2);j++){
+					A_block[counter++] = A[j];
+				}
+			}
+
+			MPI_Rsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
+			MPI_Rsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm);
 		}
 	}
 	else if (rank!=0)
@@ -87,8 +94,8 @@ int main(int argc, char const *argv[])
 		MPI_Recv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &status);
 		MPI_Recv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &status);
 		printf("====================== Process %d ===================\n", rank);
-		printMatrix(A_block, N/(num_processes-1), M);
-		printMatrix(B_block, M, N/(num_processes-1));
+		printMatrix(A_block, N, M/(num_processes-1));
+		printMatrix(B_block, M/(num_processes-1), N);
 		printf("\n");
 
 	}
