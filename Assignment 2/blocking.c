@@ -21,6 +21,7 @@ int main(int argc, char const *argv[])
 	const int M = 32;
 	
 	int N =  atoi(argv[1]);
+	
 
 	int rank, num_processes;
 	MPI_Init(NULL, NULL);
@@ -133,3 +134,4 @@ int main(int argc, char const *argv[])
 	MPI_Finalize();
 	return 0;
 }
+
