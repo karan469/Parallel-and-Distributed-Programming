@@ -28,9 +28,6 @@ int main(int argc, char const *argv[])
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
 
-
-    // double time_start=0.0;
-
 	MPI_Status status;
     	MPI_Request request;
 
@@ -39,9 +36,6 @@ int main(int argc, char const *argv[])
 	    fprintf(stderr, "Must use atleast two processes for this example\n");
 	    MPI_Abort(comm, 1);
 	}
-
-	// float buf[BUFSIZE];
-	// MPI_Buffer_attach(buf, BUFSIZE);
 
 	if(rank == 0)
 	{
@@ -74,6 +68,7 @@ int main(int argc, char const *argv[])
 		
 		double start = MPI_Wtime();
 
+		// Sending message to every other slave process their part of matrix
 		for(int f=0;f<num_processes-1;f++){
 			A_block = malloc_matrix(N, M/(num_processes-1));
 			B_block = malloc_matrix(M/(num_processes-1), N);
@@ -93,7 +88,6 @@ int main(int argc, char const *argv[])
 			MPI_Irsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm,&request);
 
             		MPI_Wait(&request,&status);
-
 		}
 
 		C_block = malloc_matrix(N, N);
@@ -125,11 +119,12 @@ int main(int argc, char const *argv[])
 
 	else if (rank>0)
 	{
-		// printf("process %d started..\n", rank);
+		// Allocating local block matrices for each process
 		A_block = malloc_matrix(N, M/(num_processes-1));
 		B_block = malloc_matrix(M/(num_processes-1), N);
 		C_block = malloc_matrix(N,N);
 
+		// Recieving with non-blocking mechanism
 		MPI_Status status;
 		MPI_Irecv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &request);
 		MPI_Irecv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &request);
@@ -140,18 +135,16 @@ int main(int argc, char const *argv[])
 			C_block[c] = (float)0;
 		}
 
-        // printf("Received by process no %d Block_A\n",rank);
-        // printMatrix(A_block, N, M/(2*(num_processes-1)));
-
+		// Matrix multiply serially on each process on sub matrices
 		Matrix_Multiply(A_block, B_block, C_block, N, M/(num_processes-1), N);
-		// printMatrix(C_block, N, N);
 		MPI_Isend(C_block, N*N, MPI_FLOAT, 0, (rank)*113, comm,&request);
 
+			// Explicit wait before master process (Process 0) is ready
        	 	MPI_Wait(&request,&status);
 
 	}
 
-	MPI_Finalize();
+	MPI_Finalize(); // Ending the MPI program
 
 	return 0;
 }
