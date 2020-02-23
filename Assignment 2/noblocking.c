@@ -34,7 +34,7 @@ int main(int argc, char const *argv[])
     // double time_start=0.0;
 
 	MPI_Status status;
-    MPI_Request request;
+    	MPI_Request request;
 
 
 	if (num_processes < 2) {
@@ -101,7 +101,7 @@ int main(int argc, char const *argv[])
 			MPI_Irsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm,&request);
 			MPI_Irsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm,&request);
 
-            MPI_Wait(&request,&status);
+            		MPI_Wait(&request,&status);
 
 		}
 
@@ -112,7 +112,7 @@ int main(int argc, char const *argv[])
 
 		for(int f=0;f<num_processes-1;f++){
 			MPI_Irecv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &request);
-            MPI_Wait(&request,&status);
+            		MPI_Wait(&request,&status);
 			addMatrices(C, C_block, C, N*N);
 		}
 
@@ -146,7 +146,7 @@ int main(int argc, char const *argv[])
 		MPI_Irecv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &request);
 		MPI_Irecv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &request);
 
-        MPI_Wait(&request,&status);
+        	MPI_Wait(&request,&status);
 
 		for(int c = 0;c<(N*N);c++){
 			C_block[c] = (float)0;
@@ -159,7 +159,7 @@ int main(int argc, char const *argv[])
 		// printMatrix(C_block, N, N);
 		MPI_Isend(C_block, N*N, MPI_FLOAT, 0, (rank)*113, comm,&request);
 
-        MPI_Wait(&request,&status);
+       	 	MPI_Wait(&request,&status);
 
 	}
 
