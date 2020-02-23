@@ -1,4 +1,5 @@
 #include "libs.h"
+#include<time.h>
 #define BUFSIZE INT_MAX
 
 float *A, *B, *C;
@@ -21,13 +22,16 @@ int main(int argc, char const *argv[])
 	const int M = 32;
 	
 	int N =  atoi(argv[1]);
-	
 
 	int rank, num_processes;
+
 	MPI_Init(NULL, NULL);
 
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
+
+
+    // double time_start=0.0;
 
 	MPI_Status status;
     MPI_Request request;
@@ -43,6 +47,8 @@ int main(int argc, char const *argv[])
 
 	if(rank == 0)
 	{
+        double start = MPI_Wtime();
+
 		int a_mssg_id = 0;
 		int b_mssg_id = 0;
 
@@ -110,18 +116,25 @@ int main(int argc, char const *argv[])
 			addMatrices(C, C_block, C, N*N);
 		}
 
-		printf("=======MPI Ans=========\n");
-		printMatrix(C, N, N);
+		// printf("=======MPI Ans=========\n");
+		// printMatrix(C, N, N);
 		float *D;
 		D = malloc_matrix(N, N);
 		for(int d = 0;d<(N*N);d++){
 			D[d] = (float)0;
 		}
-		printf("=======ACTUAL Ans=========\n");
+		// printf("=======ACTUAL Ans=========\n");
 		Matrix_Multiply(A, B, D, N, M, N);
-		printMatrix(D, N, N);
+		// printMatrix(D, N, N);
 		printf("%d\n", isEqual(C, D, N));   
+        
+        double end = MPI_Wtime();
+
+        double duration = (float)end-start;
+
+        printf("Time it took to run the process is %0.4fs\n",duration);
 	}
+
 	else if (rank>0)
 	{
 		// printf("process %d started..\n", rank);
@@ -150,7 +163,7 @@ int main(int argc, char const *argv[])
 
 	}
 
-
 	MPI_Finalize();
+
 	return 0;
 }
