@@ -27,7 +27,7 @@ void addMatrices(float *A, float *B, float *C, int n){
 
 bool isEqual(float *A, float *B, int n){
 	for(int i=0;i<n;i++){
-		if(A[i]!=B[i]){
+		if((int)(A[i]*100)!=(int)(B[i]*100)){
 			return false;
 		}
 	}
