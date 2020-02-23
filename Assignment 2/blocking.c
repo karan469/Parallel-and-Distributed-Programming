@@ -132,4 +132,15 @@ int main(int argc, char const *argv[])
 
 	MPI_Finalize();
 	return 0;
+<<<<<<< HEAD
 }
+=======
+}
+
+// 1:
+// A -> 0
+// B -> 1
+// 2:
+// A -> 2
+// B -> 3
+>>>>>>> e197727f80fc9578f2a30261705a047ee205457a
