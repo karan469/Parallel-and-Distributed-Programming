@@ -9,6 +9,8 @@
 #include <limits.h>
 #include <stdbool.h>
 #define comm MPI_COMM_WORLD
+#define BUFSIZE INT_MAX
+
 
 void printMatrix(float *A, int m, int n){
 	for(int i=0;i<m;i++){

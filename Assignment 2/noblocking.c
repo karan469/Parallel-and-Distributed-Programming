@@ -1,6 +1,4 @@
 #include "libs.h"
-#include<time.h>
-#define BUFSIZE INT_MAX
 
 float *A, *B, *C;
 float *A_block, *B_block, *C_block;
@@ -47,8 +45,6 @@ int main(int argc, char const *argv[])
 
 	if(rank == 0)
 	{
-        double start = MPI_Wtime();
-
 		int a_mssg_id = 0;
 		int b_mssg_id = 0;
 
@@ -69,12 +65,15 @@ int main(int argc, char const *argv[])
 			C[c] = (float)0;
 		}
 
+		// Printing Original matrices A and B
 		// printf("================== MATRIX A ===============\n");
 		// printMatrix(A, N, M);
 		// printf("================== MATRIX B ===============\n");
 		// printMatrix(B, M, N);
 		// printMatrix(C, N, N);
 		
+		double start = MPI_Wtime();
+
 		for(int f=0;f<num_processes-1;f++){
 			A_block = malloc_matrix(N, M/(num_processes-1));
 			B_block = malloc_matrix(M/(num_processes-1), N);
@@ -83,20 +82,12 @@ int main(int argc, char const *argv[])
 				B_block[i] = B[i + (N*M*f)/(num_processes-1)];
 			}
 
-			// Matrix_Multiply(A, B, C, N, M, N);
-			// printf("REAL ANS process  %d\n", f+1);
-			// printMatrix(C, N, N);
-			// printf("ENDS %d\n", f+1);
-
 			int counter = 0;
 			for(int i=0;i<N;i++){
 				for(int j = i*M + f*(M/(num_processes-1)); j<i*M + (int)(M/(num_processes-1)) + f*(M/(num_processes-1));j++){
 					A_block[counter++] = A[j];
 				}
 			}
-
-            // printf("A_Block being sent to process 1\n");    
-            // printMatrix(A_block, N, M/(2*(num_processes-1)));
 
 			MPI_Irsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm,&request);
 			MPI_Irsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm,&request);
@@ -116,23 +107,20 @@ int main(int argc, char const *argv[])
 			addMatrices(C, C_block, C, N*N);
 		}
 
-		// printf("=======MPI Ans=========\n");
-		// printMatrix(C, N, N);
-		float *D;
-		D = malloc_matrix(N, N);
-		for(int d = 0;d<(N*N);d++){
-			D[d] = (float)0;
-		}
-		// printf("=======ACTUAL Ans=========\n");
-		Matrix_Multiply(A, B, D, N, M, N);
-		// printMatrix(D, N, N);
-		printf("%d\n", isEqual(C, D, N));   
+		// Checking from Actual answer
+		// float *D;
+		// D = malloc_matrix(N, N);
+		// for(int d = 0;d<(N*N);d++){
+		// 	D[d] = (float)0;
+		// }
+		// Matrix_Multiply(A, B, D, N, M, N);
+		// printf("%d\n", isEqual(C, D, N));   
         
         double end = MPI_Wtime();
 
         double duration = (float)end-start;
 
-        printf("Time it took to run the process is %0.4fs\n",duration);
+        printf("[NON-BLOCKING P2P] Time it took to run the process is %0.4fs\n",duration);
 	}
 
 	else if (rank>0)
