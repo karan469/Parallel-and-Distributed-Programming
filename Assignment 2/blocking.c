@@ -18,7 +18,6 @@ void Matrix_Multiply(float *A, float *B, float *C, int m, int n, int p){
 
 int main(int argc, char const *argv[])
 {
-	// A: (N x M) B: (M x N)
 	const int M = 4;
 	int N =  4;
 
@@ -54,7 +53,7 @@ int main(int argc, char const *argv[])
 			B[b] = rand()/(float)RAND_MAX * 10;
 		}
 
-		for(int c = 0;c<(M*M);c++){
+		for(int c = 0;c<(N*N);c++){
 			C[c] = (float)0;
 		}
 
@@ -62,7 +61,7 @@ int main(int argc, char const *argv[])
 		printMatrix(A, N, M);
 		printf("================== MATRIX B ===============\n");
 		printMatrix(B, M, N);
-		// printMatrix(C, M, M);
+		// printMatrix(C, N, N);
 		
 		for(int f=0;f<num_processes-1;f++){
 			A_block = malloc_matrix(N, M/(num_processes-1));
@@ -71,6 +70,11 @@ int main(int argc, char const *argv[])
 			for(int i=0;i<N*M/2;i++){
 				B_block[i] = B[i + (N*M*f)/2];
 			}
+
+			// Matrix_Multiply(A, B, C, N, M, N);
+			// printf("REAL ANS process  %d\n", f+1);
+			// printMatrix(C, N, N);
+			// printf("ENDS %d\n", f+1);
 
 			int counter = 0;
 			for(int i=0;i<N;i++){
@@ -82,32 +86,50 @@ int main(int argc, char const *argv[])
 			MPI_Rsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
 			MPI_Rsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm);
 		}
+
+		C_block = malloc_matrix(N, N);
+		for(int c = 0;c<(N*N);c++){
+			C_block[c] = (float)0;
+		}
+
+		MPI_Status status;
+		for(int f=0;f<num_processes-1;f++){
+			MPI_Recv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &status);
+			addMatrices(C, C_block, C, N*N);
+		}
+		printf("================\n");
+		printMatrix(C, N, N);
+		float *D;
+		D = malloc_matrix(N, N);
+		printf("================\n");
+		Matrix_Multiply(A, B, D, M, N, N);
+		printMatrix(D, N, N);
+		printf("%d\n", isEqual(C, D, N));
 	}
-	else if (rank!=0)
+	else if (rank>0)
 	{
-		printf("process %d started..\n", rank);
-		A_block = malloc_matrix(N/(num_processes-1), M);
-		B_block = malloc_matrix(N/(num_processes-1), M);
-		C_block = malloc_matrix(N/(num_processes-1), M);
+		// printf("process %d started..\n", rank);
+		A_block = malloc_matrix(N, M/(num_processes-1));
+		B_block = malloc_matrix(M/(num_processes-1), N);
+		C_block = malloc_matrix(N,N);
 
 		MPI_Status status;
 		MPI_Recv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &status);
 		MPI_Recv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &status);
-		printf("====================== Process %d ===================\n", rank);
-		printMatrix(A_block, N, M/(num_processes-1));
-		printMatrix(B_block, M/(num_processes-1), N);
-		printf("\n");
+		// printf("====================== Process %d ===================\n", rank);
+		// printMatrix(A_block, N, M/(num_processes-1));
+		// printMatrix(B_block, M/(num_processes-1), N);
+		// printf("\n");
 
+		for(int c = 0;c<(N*N);c++){
+			C_block[c] = (float)0;
+		}
+		Matrix_Multiply(A_block, B_block, C_block, N, M/(num_processes-1), N);
+		// printMatrix(C_block, N, N);
+		MPI_Send(C_block, N*N, MPI_FLOAT, 0, (rank)*113, comm);
 	}
 
 
 	MPI_Finalize();
 	return 0;
 }
-
-// 1:
-// A -> 0
-// B -> 1
-// 2:
-// A -> 2
-// B -> 3
