@@ -11,6 +11,17 @@
 #define comm MPI_COMM_WORLD
 #define BUFSIZE INT_MAX
 
+void Matrix_Multiply(float *A, float *B, float *C, int m, int n, int p){
+	for (int i = 0; i < m; ++i)
+	{
+		for(int j = 0;j<p;j++){
+			C[i*p+j] = 0;
+			for(int k=0;k<n;k++){
+				C[i*p+j] += A[i*n+k] * B[k*p + j];
+			}
+		}
+	}
+}
 
 void printMatrix(float *A, int m, int n){
 	for(int i=0;i<m;i++){
