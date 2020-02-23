@@ -8,6 +8,7 @@
 #include <time.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <assert.h>
 #define comm MPI_COMM_WORLD
 #define BUFSIZE INT_MAX
 
