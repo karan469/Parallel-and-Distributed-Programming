@@ -3,4 +3,4 @@ export num_proc="$2";
 export N="$3";
 
 make compile;
-make run;
+for i in {1..5}; do make run; done;
