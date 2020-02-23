@@ -59,11 +59,11 @@ int main(int argc, char const *argv[])
 			C[c] = (float)0;
 		}
 
-		// printf("================== MATRIX A ===============\n");
-		// printMatrix(A, N, M);
-		// printf("================== MATRIX B ===============\n");
-		// printMatrix(B, M, N);
-		// printMatrix(C, N, N);
+		printf("================== MATRIX A ===============\n");
+		printMatrix(A, N, M);
+		printf("================== MATRIX B ===============\n");
+		printMatrix(B, M, N);
+		printMatrix(C, N, N);
 		
 		for(int f=0;f<num_processes-1;f++){
 			A_block = malloc_matrix(N, M/(num_processes-1));
@@ -99,8 +99,8 @@ int main(int argc, char const *argv[])
 			MPI_Recv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &status);
 			addMatrices(C, C_block, C, N*N);
 		}
-		// printf("=======MPI Ans=========\n");
-		// printMatrix(C, N, N);
+		printf("=======MPI Ans=========\n");
+		printMatrix(C, N, N);
 		float *D;
 		D = malloc_matrix(N, N);
 		for(int d = 0;d<(N*N);d++){

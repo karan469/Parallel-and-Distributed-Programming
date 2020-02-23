@@ -29,6 +29,10 @@ int main(int argc, char const *argv[])
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
 
+	MPI_Status status;
+    MPI_Request request;
+
+
 	if (num_processes < 2) {
 	    fprintf(stderr, "Must use atleast two processes for this example\n");
 	    MPI_Abort(comm, 1);
@@ -85,8 +89,14 @@ int main(int argc, char const *argv[])
 				}
 			}
 
-			MPI_Rsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm);
-			MPI_Rsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm);
+            // printf("A_Block being sent to process 1\n");    
+            // printMatrix(A_block, N, M/(2*(num_processes-1)));
+
+			MPI_Irsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm,&request);
+			MPI_Irsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm,&request);
+
+            MPI_Wait(&request,&status);
+
 		}
 
 		C_block = malloc_matrix(N, N);
@@ -94,22 +104,23 @@ int main(int argc, char const *argv[])
 			C_block[c] = (float)0;
 		}
 
-		MPI_Status status;
 		for(int f=0;f<num_processes-1;f++){
-			MPI_Recv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &status);
+			MPI_Irecv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &request);
+            MPI_Wait(&request,&status);
 			addMatrices(C, C_block, C, N*N);
 		}
-		// printf("=======MPI Ans=========\n");
-		// printMatrix(C, N, N);
+
+		printf("=======MPI Ans=========\n");
+		printMatrix(C, N, N);
 		float *D;
 		D = malloc_matrix(N, N);
 		for(int d = 0;d<(N*N);d++){
 			D[d] = (float)0;
 		}
-		// printf("=======ACTUAL Ans=========\n");
+		printf("=======ACTUAL Ans=========\n");
 		Matrix_Multiply(A, B, D, N, M, N);
-		// printMatrix(D, N, N);
-		printf("%d\n", isEqual(C, D, N));
+		printMatrix(D, N, N);
+		printf("%d\n", isEqual(C, D, N));   
 	}
 	else if (rank>0)
 	{
@@ -119,15 +130,24 @@ int main(int argc, char const *argv[])
 		C_block = malloc_matrix(N,N);
 
 		MPI_Status status;
-		MPI_Recv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &status);
-		MPI_Recv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &status);
+		MPI_Irecv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &request);
+		MPI_Irecv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &request);
+
+        MPI_Wait(&request,&status);
 
 		for(int c = 0;c<(N*N);c++){
 			C_block[c] = (float)0;
 		}
+
+        // printf("Received by process no %d Block_A\n",rank);
+        // printMatrix(A_block, N, M/(2*(num_processes-1)));
+
 		Matrix_Multiply(A_block, B_block, C_block, N, M/(num_processes-1), N);
 		// printMatrix(C_block, N, N);
-		MPI_Send(C_block, N*N, MPI_FLOAT, 0, (rank)*113, comm);
+		MPI_Isend(C_block, N*N, MPI_FLOAT, 0, (rank)*113, comm,&request);
+
+        MPI_Wait(&request,&status);
+
 	}
 
 
