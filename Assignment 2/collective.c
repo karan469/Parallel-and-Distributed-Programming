@@ -19,7 +19,7 @@ void compute_ans(float *big, float *ans, int world_size, int N){
 
 int main(int argc, char const *argv[])
 {
-	const int M = 4;
+	const int M = 32;
 	
 	int N =  atoi(argv[1]);
 
@@ -34,6 +34,10 @@ int main(int argc, char const *argv[])
 	    MPI_Abort(comm, 1);
 	}
 
+	if(N%num_processes!=0){
+		fprintf(stderr, "Cant divide work properly to all processes\n");
+	    MPI_Abort(comm, 1);
+	}
 
 	B = malloc_matrix(M, N);
 	A_block = malloc_matrix(N/(num_processes-1), M);
@@ -56,11 +60,13 @@ int main(int argc, char const *argv[])
 			C[c] = (float)0;
 		}
 
-		printf("================== MATRIX A ===============\n");
-		printMatrix(A, N, M);
-		printf("================== MATRIX B ===============\n");
-		printMatrix(B, M, N);
+		// printf("================== MATRIX A ===============\n");
+		// printMatrix(A, N, M);
+		// printf("================== MATRIX B ===============\n");
+		// printMatrix(B, M, N);
 	}
+
+	double start = MPI_Wtime();
 
 	MPI_Bcast(B, N*M, MPI_FLOAT, 0, comm);
 	MPI_Scatter(A, N*M/(num_processes), MPI_FLOAT, A_block, N*M/(num_processes), MPI_FLOAT, 0, comm);
@@ -71,9 +77,21 @@ int main(int argc, char const *argv[])
 	// printMatrix(C_block, N/(num_processes), N);
 
 
-	if(rank==0) MPI_Gather(C_block, N*M/(num_processes), MPI_FLOAT, C, N*M/(num_processes), MPI_FLOAT, 0, comm);
-	else {MPI_Gather(C_block, N*M/(num_processes), MPI_FLOAT, NULL, N*M/(num_processes), MPI_FLOAT, 0, comm);}
+	if(rank==0) MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, C, N*N/(num_processes), MPI_FLOAT, 0, comm);
+	else {MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, NULL, N*N/(num_processes), MPI_FLOAT, 0, comm);}
 	
+	// Do wee need this?
+	// MPI_Barrier(comm);
+
+	if(rank==0){
+		double end = MPI_Wtime();
+
+	    double duration = (float)end-start;
+
+	    printf("[COLLECTIVE] Time it took to run the process is %0.4fs\n",duration);
+	}
+
+	// Checking answer with serial
 	if(rank==0) {
 		float *D;
 		D = malloc_matrix(N, N);
@@ -81,11 +99,11 @@ int main(int argc, char const *argv[])
 			D[d] = (float)0;
 		}
 		Matrix_Multiply(A, B, D, N, M, N);
-		printf("================== MATRIX C_SERIAL ===============\n");
-		printMatrix(D, M, N);
+		// printf("================== MATRIX C_SERIAL ===============\n");
+		// printMatrix(D, N, N);
 
-		printf("================== MATRIX C_PARALLEL ===============\n");
-		printMatrix(C, M, N);
+		// printf("================== MATRIX C_PARALLEL ===============\n");
+		// printMatrix(C, N, N);
 		
 		printf("%d\n", isEqual(C, D, N*N));
 	}
