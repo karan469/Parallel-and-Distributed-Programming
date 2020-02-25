@@ -520,6 +520,23 @@ int main(int argc, char** argv){
     int rc;
 	// struct thread_data td;
 
+    ifstream fin;
+    fin.open(argv[3]);
+
+    int user_file = -1;
+    if(fin){user_file = 0;}
+
+    double **AA;
+    AA = getMatrix(matrix_size, 1);
+
+    for(int i=0;i<matrix_size;i++){
+    	for(int j=0;j<matrix_size;j++){
+    		fin>>AA[i][j];
+    	}
+    }
+
+    fin.close();
+
     if(thread_count<1){
 		thread_count=5;
 	}
@@ -530,6 +547,15 @@ int main(int argc, char** argv){
 
     //initialization of matrices
 	A=getMatrix(n,1);
+
+	if(user_file==0){
+		for(long p=0;p<matrix_size;p++){
+			for(long w=0;w<matrix_size;w++){
+				A[p][w] = AA[p][w];
+			}
+		}
+	}
+
 	// A = hardMatrix();
 	// printmatrix(A,n);
 	l = getMatrix(n, 2);
@@ -585,6 +611,37 @@ int main(int argc, char** argv){
 
 	//Checking the value of residual matrix i.e. L2,1 norm of (PA-LU)
 	checkAns(n);
+
+	if(user_file==0){
+		ofstream fout;
+		fout.open("./dump/P_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+
+		for(int i = 0;i<matrix_size;i++){
+			fout<<pi[i]<<" ";
+		}
+
+		fout.close();
+
+		fout.open("./dump/L_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<matrix_size;i++){
+			for(int j=0;j<matrix_size;j++){
+				fout<<l[i][j]<<" ";
+			}
+			fout<<"\n";
+		}
+
+		fout.close();
+
+		fout.open("./dump/U_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<matrix_size;i++){
+			for(int j=0;j<matrix_size;j++){
+				fout<<u[i][j]<<" ";
+			}
+			fout<<"\n";
+		}
+
+		fout.close();
+	}
 
 	//Freeing 2dm atrices
     free2dmatrix(A);

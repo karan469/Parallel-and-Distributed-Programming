@@ -259,7 +259,7 @@ int main(int argc, char** argv){
     long thread_count = strtol(argv[2], NULL, 10);
 
 
-    fstream fin;
+    ifstream fin;
     fin.open(argv[3]);
 
     int user_file = -1;
@@ -273,6 +273,8 @@ int main(int argc, char** argv){
     		fin>>A[i][j];
     	}
     }
+
+    fin.close();
 
     // cout<<A[0][99]<<endl;
     
