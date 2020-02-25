@@ -497,9 +497,9 @@ void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
 		}
 		// cout<<"\n";
 	}
-	long  gsum = 0;
+	long  gsum = 0.000000;
 	for(long i=0;i<size;i++){
-		long  sum = 0;
+		long  sum = 0.000000;
 		for(long j=0;j<size;j++){
 			sum += mult1[i][j]*mult1[i][j];
 		}
@@ -509,6 +509,7 @@ void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
 	free2dmatrix(mult1);
 	free2dmatrix(mult2);
 	cout<<"Check sum: "<<gsum<<"\n";
+	if(gsum < 4.5e-10){cout<<"DECOMPOSITION CORRECTLY DONE."<<endl;}
 }
 
 int main(int argc, char** argv){
@@ -527,10 +528,10 @@ int main(int argc, char** argv){
     if(fin){user_file = 0;}
 
     double **AA;
-    AA = getMatrix(matrix_size, 1);
+    AA = getMatrix(n, 1);
 
-    for(int i=0;i<matrix_size;i++){
-    	for(int j=0;j<matrix_size;j++){
+    for(int i=0;i<n;i++){
+    	for(int j=0;j<n;j++){
     		fin>>AA[i][j];
     	}
     }
@@ -543,14 +544,14 @@ int main(int argc, char** argv){
 
 
     // omp_set_num_threads(thread_count);
-    // printf("%d\n", matrix_size);
+    // printf("%d\n", n);
 
     //initialization of matrices
 	A=getMatrix(n,1);
 
 	if(user_file==0){
-		for(long p=0;p<matrix_size;p++){
-			for(long w=0;w<matrix_size;w++){
+		for(long p=0;p<n;p++){
+			for(long w=0;w<n;w++){
 				A[p][w] = AA[p][w];
 			}
 		}
@@ -586,11 +587,11 @@ int main(int argc, char** argv){
 	double start = omp_get_wtime();
 
 	//main function starts here
-	// decomposePthread(/*A,l, u, pi, matrix_size*/);
+	// decomposePthread(/*A,l, u, pi, n*/);
 	decomposePthread();
-	// decomposeOpenMP(checker,l, u, pi, matrix_size);
+	// decomposeOpenMP(checker,l, u, pi, n);
 
-	// // serialDecompose(matrix,l, u, pi, matrix_size);
+	// // serialDecompose(matrix,l, u, pi, n);
 	// printmatrix(origMatrix, n);
 	// cerr<<"\nL Matrix:\n";
 	// printmatrix(l, n);
@@ -605,7 +606,7 @@ int main(int argc, char** argv){
 	printf("Algo selected :%s\n","Pthread");
 	printf("Size of Matrix :%lu \n",n);
 	printf("Number of Procs : %lu\n",NUM_OF_THREADS);
-	// printf("%s",check(matrix,matrix_size,version)==1? "DECOMPOSE SUCCESSFULL\n":"DECOMPOSE FAIL\n");
+	// printf("%s",check(matrix,n,version)==1? "DECOMPOSE SUCCESSFULL\n":"DECOMPOSE FAIL\n");
 	printf("DECOMPOSE TIME TAKEN : %f seconds\n",duration);
 	printf("\n**********************************\n\n");
 
@@ -614,17 +615,17 @@ int main(int argc, char** argv){
 
 	if(user_file==0){
 		ofstream fout;
-		fout.open("./dump/P_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		fout.open("./dump/pthread/P_" + to_string(n) + "_" + to_string(thread_count) + ".txt");
 
-		for(int i = 0;i<matrix_size;i++){
+		for(int i = 0;i<n;i++){
 			fout<<pi[i]<<" ";
 		}
 
 		fout.close();
 
-		fout.open("./dump/L_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
-		for(int i=0;i<matrix_size;i++){
-			for(int j=0;j<matrix_size;j++){
+		fout.open("./dump/pthread/L_" + to_string(n) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
 				fout<<l[i][j]<<" ";
 			}
 			fout<<"\n";
@@ -632,9 +633,9 @@ int main(int argc, char** argv){
 
 		fout.close();
 
-		fout.open("./dump/U_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
-		for(int i=0;i<matrix_size;i++){
-			for(int j=0;j<matrix_size;j++){
+		fout.open("./dump/pthread/U_" + to_string(n) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
 				fout<<u[i][j]<<" ";
 			}
 			fout<<"\n";

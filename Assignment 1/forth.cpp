@@ -340,7 +340,7 @@ int main(int argc, char** argv){
 
 	if(user_file==0){
 		ofstream fout;
-		fout.open("./dump/P_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		fout.open("./dump/openmp/P_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
 
 		for(int i = 0;i<matrix_size;i++){
 			fout<<pi[i]<<" ";
@@ -348,7 +348,7 @@ int main(int argc, char** argv){
 
 		fout.close();
 
-		fout.open("./dump/L_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		fout.open("./dump/openmp/L_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
 		for(int i=0;i<matrix_size;i++){
 			for(int j=0;j<matrix_size;j++){
 				fout<<l[i][j]<<" ";
@@ -358,7 +358,7 @@ int main(int argc, char** argv){
 
 		fout.close();
 
-		fout.open("./dump/U_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		fout.open("./dump/openmp/U_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
 		for(int i=0;i<matrix_size;i++){
 			for(int j=0;j<matrix_size;j++){
 				fout<<u[i][j]<<" ";
