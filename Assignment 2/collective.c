@@ -29,10 +29,10 @@ int main(int argc, char const *argv[])
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
 
-	if (num_processes < 2) {
-	    fprintf(stderr, "Must use atleast two processes for this example\n");
-	    MPI_Abort(comm, 1);
-	}
+	// if (num_processes < 2) {
+	//     fprintf(stderr, "Must use atleast two processes for this example\n");
+	//     MPI_Abort(comm, 1);
+	// }
 
 	if(N%num_processes!=0){
 		fprintf(stderr, "Cant divide work properly to all processes\n");
@@ -40,8 +40,8 @@ int main(int argc, char const *argv[])
 	}
 
 	B = malloc_matrix(M, N);
-	A_block = malloc_matrix(N/(num_processes-1), M);
-	C_block = malloc_matrix(N/(num_processes-1), N);
+	A_block = malloc_matrix(N/(num_processes), M);
+	C_block = malloc_matrix(N/(num_processes), N);
 	if(rank==0)
 	{
 		A = malloc_matrix(N, M);

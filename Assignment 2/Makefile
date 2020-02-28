@@ -1,5 +1,5 @@
 compile:
-	mpicc -O3 -o $(input).o $(input).c
+	mpicc -o $(input).o $(input).c
 run:
 	mpirun -n $(num_proc) --use-hwthread-cpus $(input).o $(N)
 
