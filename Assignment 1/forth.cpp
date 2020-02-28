@@ -3,6 +3,7 @@
 // #include<stdlib.h>
 #include <time.h>
 #include <chrono>
+#include <fstream>
 
 using namespace std;
 
@@ -71,8 +72,6 @@ void serialDecompose(double **A, double **l, double **u, int *pi, long n){
 
 //Openmp parallel code for decomposing. Input - A(n, n) | Output - pi(n), L(n, n), U(n, n)
 void decomposeOpenMP(double **A, double **l, double **u, int *pi, long n){
-	// cout<<"Hello\n";
-	// int k;
 	double colmax;
 	int k_;
 	for(long k=0;k<n;k++){
@@ -250,20 +249,51 @@ void checkAns(int *pi, double **A, double **l, double **u, long size){
 	free2dmatrix(mult1,size);
 	free2dmatrix(mult2,size);
 	cout<<"Check sum: "<<gsum<<"\n";
+	if(gsum < 4.5e-10){cout<<"DECOMPOSITION CORRECTLY DONE."<<endl;}
 }
 
 int main(int argc, char** argv){
+
     srand48((unsigned int)time(NULL));
     matrix_size = strtol(argv[1], NULL, 10);
     long thread_count = strtol(argv[2], NULL, 10);
+
+
+    ifstream fin;
+    fin.open(argv[3]);
+
+    int user_file = -1;
+    if(fin){user_file = 0;}
+
+    double **A;
+    A = getMatrix(matrix_size, 1);
+
+    for(int i=0;i<matrix_size;i++){
+    	for(int j=0;j<matrix_size;j++){
+    		fin>>A[i][j];
+    	}
+    }
+
+    fin.close();
+
+    // cout<<A[0][99]<<endl;
+    
     if(thread_count<1){
 		thread_count=5;
 	}
     omp_set_num_threads(thread_count);
-    // printf("%d\n", matrix_size);
     
     //initialization of matrices
 	double **matrix=getMatrix(matrix_size,1);
+	
+	if(user_file==0){
+		for(long p=0;p<matrix_size;p++){
+			for(long w=0;w<matrix_size;w++){
+				matrix[p][w] = A[p][w];
+			}
+		}
+	}
+
 	double **l = getMatrix(matrix_size, 2);
 	double **u = getMatrix(matrix_size, 3);
 	
@@ -306,7 +336,38 @@ int main(int argc, char** argv){
 	printf("\n**********************************\n\n");
 
 	//Checking the value of residual matrix i.e. L2,1 norm of (PA-LU)
-	// checkAns(pi, origMatrix, l, u, matrix_size);
+	checkAns(pi, origMatrix, l, u, matrix_size);
+
+	if(user_file==0){
+		ofstream fout;
+		fout.open("./dump/openmp/P_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+
+		for(int i = 0;i<matrix_size;i++){
+			fout<<pi[i]<<" ";
+		}
+
+		fout.close();
+
+		fout.open("./dump/openmp/L_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<matrix_size;i++){
+			for(int j=0;j<matrix_size;j++){
+				fout<<l[i][j]<<" ";
+			}
+			fout<<"\n";
+		}
+
+		fout.close();
+
+		fout.open("./dump/openmp/U_" + to_string(matrix_size) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<matrix_size;i++){
+			for(int j=0;j<matrix_size;j++){
+				fout<<u[i][j]<<" ";
+			}
+			fout<<"\n";
+		}
+
+		fout.close();
+	}
 
 	//Freeing 2dm atrices
     free2dmatrix(matrix,matrix_size);

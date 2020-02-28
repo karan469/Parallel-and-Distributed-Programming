@@ -497,9 +497,9 @@ void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
 		}
 		// cout<<"\n";
 	}
-	long  gsum = 0;
+	long  gsum = 0.000000;
 	for(long i=0;i<size;i++){
-		long  sum = 0;
+		long  sum = 0.000000;
 		for(long j=0;j<size;j++){
 			sum += mult1[i][j]*mult1[i][j];
 		}
@@ -509,6 +509,7 @@ void checkAns(/*int *pi, double **A, double **l, double **u*/long size){
 	free2dmatrix(mult1);
 	free2dmatrix(mult2);
 	cout<<"Check sum: "<<gsum<<"\n";
+	if(gsum < 4.5e-10){cout<<"DECOMPOSITION CORRECTLY DONE."<<endl;}
 }
 
 int main(int argc, char** argv){
@@ -520,16 +521,42 @@ int main(int argc, char** argv){
     int rc;
 	// struct thread_data td;
 
+    ifstream fin;
+    fin.open(argv[3]);
+
+    int user_file = -1;
+    if(fin){user_file = 0;}
+
+    double **AA;
+    AA = getMatrix(n, 1);
+
+    for(int i=0;i<n;i++){
+    	for(int j=0;j<n;j++){
+    		fin>>AA[i][j];
+    	}
+    }
+
+    fin.close();
+
     if(thread_count<1){
 		thread_count=5;
 	}
 
 
     // omp_set_num_threads(thread_count);
-    // printf("%d\n", matrix_size);
+    // printf("%d\n", n);
 
     //initialization of matrices
 	A=getMatrix(n,1);
+
+	if(user_file==0){
+		for(long p=0;p<n;p++){
+			for(long w=0;w<n;w++){
+				A[p][w] = AA[p][w];
+			}
+		}
+	}
+
 	// A = hardMatrix();
 	// printmatrix(A,n);
 	l = getMatrix(n, 2);
@@ -560,11 +587,11 @@ int main(int argc, char** argv){
 	double start = omp_get_wtime();
 
 	//main function starts here
-	// decomposePthread(/*A,l, u, pi, matrix_size*/);
+	// decomposePthread(/*A,l, u, pi, n*/);
 	decomposePthread();
-	// decomposeOpenMP(checker,l, u, pi, matrix_size);
+	// decomposeOpenMP(checker,l, u, pi, n);
 
-	// // serialDecompose(matrix,l, u, pi, matrix_size);
+	// // serialDecompose(matrix,l, u, pi, n);
 	// printmatrix(origMatrix, n);
 	// cerr<<"\nL Matrix:\n";
 	// printmatrix(l, n);
@@ -579,12 +606,43 @@ int main(int argc, char** argv){
 	printf("Algo selected :%s\n","Pthread");
 	printf("Size of Matrix :%lu \n",n);
 	printf("Number of Procs : %lu\n",NUM_OF_THREADS);
-	// printf("%s",check(matrix,matrix_size,version)==1? "DECOMPOSE SUCCESSFULL\n":"DECOMPOSE FAIL\n");
+	// printf("%s",check(matrix,n,version)==1? "DECOMPOSE SUCCESSFULL\n":"DECOMPOSE FAIL\n");
 	printf("DECOMPOSE TIME TAKEN : %f seconds\n",duration);
 	printf("\n**********************************\n\n");
 
 	//Checking the value of residual matrix i.e. L2,1 norm of (PA-LU)
 	checkAns(n);
+
+	if(user_file==0){
+		ofstream fout;
+		fout.open("./dump/pthread/P_" + to_string(n) + "_" + to_string(thread_count) + ".txt");
+
+		for(int i = 0;i<n;i++){
+			fout<<pi[i]<<" ";
+		}
+
+		fout.close();
+
+		fout.open("./dump/pthread/L_" + to_string(n) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
+				fout<<l[i][j]<<" ";
+			}
+			fout<<"\n";
+		}
+
+		fout.close();
+
+		fout.open("./dump/pthread/U_" + to_string(n) + "_" + to_string(thread_count) + ".txt");
+		for(int i=0;i<n;i++){
+			for(int j=0;j<n;j++){
+				fout<<u[i][j]<<" ";
+			}
+			fout<<"\n";
+		}
+
+		fout.close();
+	}
 
 	//Freeing 2dm atrices
     free2dmatrix(A);
