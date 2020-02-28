@@ -12,6 +12,7 @@
 #define comm MPI_COMM_WORLD
 #define BUFSIZE INT_MAX
 
+//Function for Matrix Multiplication
 void Matrix_Multiply(float *A, float *B, float *C, int m, int n, int p){
 	for (int i = 0; i < m; ++i)
 	{
@@ -24,6 +25,7 @@ void Matrix_Multiply(float *A, float *B, float *C, int m, int n, int p){
 	}
 }
 
+//Prints Matrix in 2 dimensional format
 void printMatrix(float *A, int m, int n){
 	for(int i=0;i<m;i++){
 		for(int j=0;j<n;j++){
@@ -33,12 +35,14 @@ void printMatrix(float *A, int m, int n){
 	}
 }
 
+//Adds two matrices
 void addMatrices(float *A, float *B, float *C, int n){
 	for(int i=0;i<n;i++){
 		C[i] = A[i] + B[i];
 	}
 }
 
+//Checks if serial and parallel answers are the same
 bool isEqual(float *A, float *B, int n){
 	for(int i=0;i<n;i++){
 		if((int)(A[i]*100)!=(int)(B[i]*100)){
@@ -48,6 +52,7 @@ bool isEqual(float *A, float *B, int n){
 	return true;
 }
 
+//Allocate Dynamic Memory for matrix
 float* malloc_matrix(int m, int n){
 	return (float*)malloc(m*n*sizeof(float));
 }

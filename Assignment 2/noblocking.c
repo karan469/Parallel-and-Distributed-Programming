@@ -1,5 +1,6 @@
 #include "libs.h"
 
+//Input/Output Matrices
 float *A, *B, *C;
 float *A_block, *B_block, *C_block;
 
@@ -11,8 +12,10 @@ int main(int argc, char const *argv[])
 
 	int rank, num_processes;
 
+	//Initialises Open MPI environment
 	MPI_Init(NULL, NULL);
 
+	//Designate number of process and rank to each process
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
 
@@ -25,6 +28,7 @@ int main(int argc, char const *argv[])
 	    MPI_Abort(comm, 1);
 	}
 
+	//Enter master process
 	if(rank == 0)
 	{
 		int a_mssg_id = 0;
@@ -34,6 +38,7 @@ int main(int argc, char const *argv[])
 		B = malloc_matrix(M, N);
 		C = malloc_matrix(N, N);
 
+		//Random Initialisation matrices to multiply
 		srand(time(NULL));
 		for(int a = 0;a<(N*M);a++){
 			A[a] = rand()/(float)RAND_MAX;
@@ -56,7 +61,7 @@ int main(int argc, char const *argv[])
 		
 		double start = MPI_Wtime();
 
-		// Sending message to every other slave process their part of matrix
+		//Dividing Input Matrices into blocks to send to slave processes
 		for(int f=0;f<num_processes-1;f++){
 			A_block = malloc_matrix(N, M/(num_processes-1));
 			B_block = malloc_matrix(M/(num_processes-1), N);
@@ -72,10 +77,12 @@ int main(int argc, char const *argv[])
 				}
 			}
 
+			//Non Blocking sending of blocks of matrices to slave
 			MPI_Irsend(A_block, (int)(N*M/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*13, comm,&request);
 			MPI_Irsend(B_block, (int)(M*N/(num_processes-1)), MPI_FLOAT, f+1, (f+1)*97, comm,&request);
 
-            		MPI_Wait(&request,&status);
+            //Waits for the sending process to finish to the slave processes
+            MPI_Wait(&request,&status);
 		}
 
 		C_block = malloc_matrix(N, N);
@@ -84,8 +91,11 @@ int main(int argc, char const *argv[])
 		}
 
 		for(int f=0;f<num_processes-1;f++){
+			//Receives multiplied blocks from slave processes
 			MPI_Irecv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &request);
-            		MPI_Wait(&request,&status);
+
+            //Waits for master to receive all computations to arrive from slave
+            MPI_Wait(&request,&status);
 			addMatrices(C, C_block, C, N*N);
 		}
 
@@ -117,7 +127,7 @@ int main(int argc, char const *argv[])
 		MPI_Irecv(A_block, INT_MAX, MPI_FLOAT, 0, (rank)*13, comm, &request);
 		MPI_Irecv(B_block, INT_MAX, MPI_FLOAT, 0, (rank)*97, comm, &request);
 
-        	MPI_Wait(&request,&status);
+        MPI_Wait(&request,&status);
 
 		for(int c = 0;c<(N*N);c++){
 			C_block[c] = (float)0;
@@ -127,12 +137,12 @@ int main(int argc, char const *argv[])
 		Matrix_Multiply(A_block, B_block, C_block, N, M/(num_processes-1), N);
 		MPI_Isend(C_block, N*N, MPI_FLOAT, 0, (rank)*113, comm,&request);
 
-			// Explicit wait before master process (Process 0) is ready
-       	 	MPI_Wait(&request,&status);
+		// Explicit wait before master process (Process 0) is ready
+       	MPI_Wait(&request,&status);
 
 	}
 
 	MPI_Finalize(); // Ending the MPI program
-
+ 
 	return 0;
 }

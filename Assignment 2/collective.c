@@ -1,21 +1,8 @@
 #include "libs.h"
 
+//Input/Output Matrices
 float *A, *B, *C;
 float *A_block, *B_block, *C_block;
-
-void compute_ans(float *big, float *ans, int world_size, int N){
-	for(int i=0;i<N*N;i++){
-		ans[i] = (float)0;
-	}
-
-	for(int i=0;i<N*N;i++){
-		float sum = 0;
-		for(int j=i;j<world_size*N*N;j+=N*N){
-			sum += big[j];
-		}
-		ans[i] = sum;
-	}
-}
 
 int main(int argc, char const *argv[])
 {
@@ -24,8 +11,11 @@ int main(int argc, char const *argv[])
 	int N =  atoi(argv[1]);
 
 	int rank, num_processes;
+
+	//Initialises Open MPI environment
 	MPI_Init(NULL, NULL);
 
+	//Designate number of process and rank to each process
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
 
@@ -39,14 +29,18 @@ int main(int argc, char const *argv[])
 	    MPI_Abort(comm, 1);
 	}
 
+
 	B = malloc_matrix(M, N);
 	A_block = malloc_matrix(N/(num_processes), M);
 	C_block = malloc_matrix(N/(num_processes), N);
+
+	//Enter master process
 	if(rank==0)
 	{
 		A = malloc_matrix(N, M);
 		C = malloc_matrix(N, N);
 
+		//Random Initialisation matrices to multiply
 		srand(time(NULL));
 		for(int a = 0;a<(N*M);a++){
 			A[a] = rand()/(float)RAND_MAX;
@@ -68,7 +62,10 @@ int main(int argc, char const *argv[])
 
 	double start = MPI_Wtime();
 
+	//Broadcasts/Sends Matrix B to all processes
 	MPI_Bcast(B, N*M, MPI_FLOAT, 0, comm);
+
+	//Scatters/Divides A into blocks sending them individually to all processes
 	MPI_Scatter(A, N*M/(num_processes), MPI_FLOAT, A_block, N*M/(num_processes), MPI_FLOAT, 0, comm);
 	
 	Matrix_Multiply(A_block, B, C_block, N/(num_processes), M, N);
@@ -76,9 +73,9 @@ int main(int argc, char const *argv[])
 	// printf("================MATRIX C_BLOCK from P%d============\n", rank);
 	// printMatrix(C_block, N/(num_processes), N);
 
-
-	if(rank==0) MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, C, N*N/(num_processes), MPI_FLOAT, 0, comm);
-	else {MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, NULL, N*N/(num_processes), MPI_FLOAT, 0, comm);}
+	//Gathers computations and concatenate answers with each other
+	if(rank==0) MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, C, N*N/(num_processes), MPI_FLOAT, 0, comm); // if master, concatenate computed block with output matrix
+	else {MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, NULL, N*N/(num_processes), MPI_FLOAT, 0, comm);}  // if not master, receive only the block
 	
 	// Do wee need this?
 	// MPI_Barrier(comm);
@@ -108,6 +105,7 @@ int main(int argc, char const *argv[])
 		printf("%d\n", isEqual(C, D, N*N));
 	}
 
+	//Ends MPI Environment
 	MPI_Finalize();
 	return 0;
 }
