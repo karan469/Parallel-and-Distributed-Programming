@@ -1,20 +1,18 @@
 #include "libs.h"
 #define BUFSIZE INT_MAX
 
-//Input/Output Matrices
-float *A, *B, *C;
-float *A_block, *B_block, *C_block;
+float *A, *B, *C; //Input/Output Matrices
+float *A_block, *B_block, *C_block; // sub-matrices for each slave process
 
 int main(int argc, char const *argv[])
 {
+	// Args
 	const int M = 32;
-	
 	int N =  atoi(argv[1]);
-	
 
 	int rank, num_processes;
 
-	//Initialises Open MPI environment
+	// Initialises Open MPI environment
 	MPI_Init(NULL, NULL);
 
 	//Designate number of process and rank to each process
@@ -26,7 +24,7 @@ int main(int argc, char const *argv[])
 	    MPI_Abort(comm, 1);
 	}
 
-	//Enter master process
+	// Master process
 	if(rank == 0)
 	{
 		int a_mssg_id = 0;
@@ -66,11 +64,6 @@ int main(int argc, char const *argv[])
 				B_block[i] = B[i + (N*M*f)/(num_processes-1)];
 			}
 
-			// Matrix_Multiply(A, B, C, N, M, N);
-			// printf("REAL ANS process  %d\n", f+1);
-			// printMatrix(C, N, N);
-			// printf("ENDS %d\n", f+1);
-
 			int counter = 0;
 			for(int i=0;i<N;i++){
 				for(int j = i*M + f*(M/(num_processes-1)); j<i*M + (int)(M/(num_processes-1)) + f*(M/(num_processes-1));j++){
@@ -94,19 +87,19 @@ int main(int argc, char const *argv[])
 			MPI_Recv(C_block, N*N, MPI_FLOAT, MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &status);
 			addMatrices(C, C_block, C, N*N);
 		}
-		// printf("=======MPI Ans=========\n");
-		// printMatrix(C, N, N);
-		float *D;
-		D = malloc_matrix(N, N);
-		for(int d = 0;d<(N*N);d++){
-			D[d] = (float)0;
-		}
+
+		// DEBUG ANSWER
+		// float *D;
+		// D = malloc_matrix(N, N);
+		// for(int d = 0;d<(N*N);d++){
+		// 	D[d] = (float)0;
+		// }
 		// printf("=======ACTUAL Ans=========\n");
-		Matrix_Multiply(A, B, D, N, M, N);
+		// Matrix_Multiply(A, B, D, N, M, N);
 		// printMatrix(D, N, N);
 
 		//Compare serial and parallel answer
-		printf("%d\n", isEqual(C, D, N));
+		// printf("%d\n", isEqual(C, D, N));
 	}
 	else if (rank>0)
 	{

@@ -1,8 +1,7 @@
 #include "libs.h"
 
-//Input/Output Matrices
-float *A, *B, *C;
-float *A_block, *B_block, *C_block;
+float *A, *B, *C; //Input/Output Matrices
+float *A_block, *B_block, *C_block; // sub-matrices for each slave process
 
 int main(int argc, char const *argv[])
 {

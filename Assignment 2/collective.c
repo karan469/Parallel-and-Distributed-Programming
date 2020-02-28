@@ -19,11 +19,6 @@ int main(int argc, char const *argv[])
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &num_processes);
 
-	// if (num_processes < 2) {
-	//     fprintf(stderr, "Must use atleast two processes for this example\n");
-	//     MPI_Abort(comm, 1);
-	// }
-
 	if(N%num_processes!=0){
 		fprintf(stderr, "Cant divide work properly to all processes\n");
 	    MPI_Abort(comm, 1);
@@ -76,9 +71,6 @@ int main(int argc, char const *argv[])
 	//Gathers computations and concatenate answers with each other
 	if(rank==0) MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, C, N*N/(num_processes), MPI_FLOAT, 0, comm); // if master, concatenate computed block with output matrix
 	else {MPI_Gather(C_block, N*N/(num_processes), MPI_FLOAT, NULL, N*N/(num_processes), MPI_FLOAT, 0, comm);}  // if not master, receive only the block
-	
-	// Do wee need this?
-	// MPI_Barrier(comm);
 
 	if(rank==0){
 		double end = MPI_Wtime();
