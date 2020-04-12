@@ -18,6 +18,7 @@
 #include <iostream>
 #define print(x) std::cout<<x<<endl;
 #define MAP_TYPE map<int, vector<int>>
+#define ACC_TOLERANCE 0.0005
 using namespace std;
 
 map<int, vector<int>> graph;
@@ -87,7 +88,7 @@ class number_source : mapreduce::detail::noncopyable
     bool const setup_key(typename MapTask::key_type &key)
     {
         key = sequence_++;
-        print("setup_key called"<<key<<" x "<<step_<<" x "<<last_);
+        // print("setup_key called "<<key<<" x "<<step_<<" x "<<last_);
         return (key * step_ <= last_);
     }
 
@@ -97,7 +98,7 @@ class number_source : mapreduce::detail::noncopyable
 
         val.first  = first_ + (key * step_);
         val.second = std::min(val.first + step_ - 1, last_);
-        cerr<<"VAL1: ["<<val.first<<", "<<val.second<<"]"<<endl;
+        // cerr<<"VAL1: ["<<val.first<<", "<<val.second<<"]"<<endl;
         std::swap(val, value);
         return true;
     }
@@ -114,7 +115,7 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
     template<typename Runtime>
     void operator()(Runtime &runtime, key_type const /*&key*/, value_type const &value) const
     {
-        print("VAL2: ["<<value.first<<" "<<value.second<<"]");
+        // print("VAL2: ["<<value.first<<" "<<value.second<<"]");
         for(int i=value.first;i<=value.second;i++){
             MAP_TYPE::iterator it = graph.find(i);
             if(it==graph.end()){
@@ -123,9 +124,9 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
             }
             vector<int> l = it->second;
             for(int j=0;j<l.size();j++){
-                if(l[i]==-1){continue;}
-                print("EMIT: {   "<<l[i]<<" | "<<pr[i]/l.size()<<"   }");
-                runtime.emit_intermediate(l[i], pr[i]/l.size());
+                if(l[j]==-1){continue;}
+                // print("EMIT: {   "<<l[j]<<" | "<<pr[i]/l.size()<<"   }");
+                runtime.emit_intermediate(l[j], pr[j]/l.size());
             }        
         }
     }
@@ -137,12 +138,13 @@ struct reduce_task : public mapreduce::reduce_task<int, float>
     void operator()(Runtime &runtime, key_type const &key, It it, It ite) const
     {
         value_type sum = 0;
+        // print("In reduce task: "<<key);
         for(auto itr=it;itr!=ite;itr++){
+            // print(*itr);
             sum += *itr;
         }
-        print("SUM: $$ "<<sum<<" $$");
         pr[key] = 0.15 + 0.85*(sum);
-        // return;
+        runtime.emit(key, (0.15 + 0.85*(sum)));
     }
 };
 
@@ -187,8 +189,8 @@ int main(int argc, char *argv[])
             }
         }
     }
-    for(int i=maxs+1;i<=max_node_num;i++){
-        graph[i].push_back(-1);
+    for(int i=0;i<=max_node_num;i++){
+        if(graph.find(i)==graph.end()) graph[i].push_back(-1);
     }
 
     print_graph(graph);
@@ -214,27 +216,44 @@ int main(int argc, char *argv[])
         reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
     spec.reduce_tasks = reduce_tasks;
 
-    print("SPREC: "<<max_node_num<<" "<<max_node_num/reduce_tasks);
-    prime_calculator::job::datasource_type number_source(0, max_node_num, max_node_num/reduce_tasks);
+    // print("SPREC: "<<max_node_num<<" "<<max_node_num/reduce_tasks);
+    prime_calculator::job::datasource_type number_source(0, max_node_num, (max_node_num+1)/reduce_tasks);
 
     std::cout <<"\nCalculating Page rank " << filename << " ..." <<std::endl;
+    
+    // 
     prime_calculator::job job(number_source, spec);
     mapreduce::results result;
 
 
+    float last_sum = 0;
+    int iter = 0;
+    // for(int i=0;i<1;i++)
+    while(true)
+    {
+        iter += 1;
 #ifdef _DEBUG
     job.run<mapreduce::schedule_policy::sequential<prime_calculator::job> >(result);
 #else
     job.run<mapreduce::schedule_policy::cpu_parallel<prime_calculator::job> >(result);
 #endif
-    std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
 
+    float sum_all_pr = 0;
+    for(int k=0;k<=max_node_num;k++){
+        sum_all_pr += pr[k];
+    }
+    for(int a=0;a<=max_node_num;a++){
+        pr[a] /= sum_all_pr;
+    }
+    if((sum_all_pr-last_sum)*(sum_all_pr-last_sum) < ACC_TOLERANCE){break;}
+    last_sum = sum_all_pr;
+}
+    std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
+    print("Num of Iterations: "<<iter);
     for(int i=0;i<=max_node_num;i++){
         print(i<<" "<<pr[i]);
     }
 
-    for (auto it=job.begin_results(); it!=job.end_results(); ++it)
-        std::cout << it->second <<" ";
 
 	return 0;
 }
