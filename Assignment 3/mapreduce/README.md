@@ -2,7 +2,8 @@ Pagerank using MapReduce Library
 =
 
 ```
-	./run.sh prime; ./prime.o {filename} {map task} {reduce task} {iteration number}
+	./run.sh prime; 
+	./prime.o {filename} {map task} {reduce task} {iteration number}
 ```
 
 MapReduce C++ Library
