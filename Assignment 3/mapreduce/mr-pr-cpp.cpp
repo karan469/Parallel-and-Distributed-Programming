@@ -1,60 +1,77 @@
-#include <boost/config.hpp>
-#if defined(BOOST_MSVC)
-#   pragma warning(disable: 4127)
-
-// turn off checked iterators to avoid performance hit
-#   if !defined(__SGI_STL_PORT)  &&  !defined(_DEBUG)
-#       define _SECURE_SCL 0
-#       define _HAS_ITERATOR_DEBUGGING 0
-#   endif
-#endif
-
-#include "./include/mapreduce.hpp"
-// #include <iostream>
 #include <bits/stdc++.h>
-#include "table.h"
+#include "./include/mapreduce.hpp"
+#include <boost/config.hpp>
+#include <fstream>
+#include<stdlib.h>
+#include <stdio.h>
+#define print(x) std::cout<<x<<'\n'
+#define min(x, y) -1?x<y:1
+#define DAMPING_FACTOR 0.85
 
-#define print(x) cout<<x<<'\n'
+using namespace std;
 
-namespace pagerank{
+map<int, float> pr;
+vector<pair<int, vector<int> > > graph;
 
-// std::pair<std::int, std::vector<std::int, std::int> > graph;
-vector<pair<int, int> > inGraph;
-vector<pair<int, vector<int> >  > outGraph = {{1, {2}}, {2, {1}}};
-
-struct map_task : public mapreduce::map_task<int, vector<int> >
-{
-	template<typename Runtime>
-	void operator()(Runtime &runtime, int const &key, vector<int> const &value) const
-	{
-
+// void calc_pagerank()
+void init_pr(int start, int end){
+	pr.clear();
+	for(int i=start;i<=end;i++){
+		pr.insert({i, 0.18});
 	}
-};
+}
 
-struct reduce_task : public mapreduce::reduce_task<bool, long>
-{
-    template<typename Runtime, typename It>
-    void operator()(Runtime &runtime, int const &key, It it, It ite) const
-    {
+void init_graph(int start, int end){
+	srand(time(0));
+	for(int i=start;i<=end;i++){
+		int a = start + ( std::rand() % ( end/2 - start + 1 ) );
+		int b = end/2 + ( std::rand() % ( end - end/2 + 1 ) );
+		vector<int> outlinks;
+		for(int j=a;j<=b;j++){
+			outlinks.push_back(j);
+		}
+		graph.push_back({i, outlinks});
+	}
+}
 
-    }
-};
+void print_int_vector(vector<int> vec){
+	for(int i=0;i<vec.size();i++){
+		cout<<vec[i]<<" ";
+	}
+	cout<<endl;
+}
 
-typedef mapreduce::job<pagerank::map_task, pagerank::reduce_task, mapreduce::null_combiner> job;
+void print_pr(){
+	print("--- Printing Page Ranks ---");
+	for(auto itr = pr.begin(); itr!=pr.end(); itr++){
+		cout<<itr->first<<": "<<itr->second<<endl;
+	}
+}
 
+void print_graph(){
+	print("--- Printing Graphs ---");
+	for(int i=0;i<graph.size();i++){
+		cout<<graph[i].first<<": "<<endl;
+		print_int_vector(graph[i].second);
+	}
+}
+
+void pr_calculate(){
+	for(int i=0;i<graph.size();i++){
+		vector<int> outlinks = graph.second;
+		int node_num = graph.first;
+		auto map<int, float>::iterator itr = pr.find(node_num);
+		float sum = (1-DAMPING_FACTOR)
+	}
 }
 
 int main(int argc, char const *argv[])
 {
+	init_pr(1, 10);
+	print_pr();
+	init_graph(1, 10);
+	print_graph();
 	print("Hello world");
-	Table t;
 	
-	t.read_file("diamond.txt");
-	t.print_table();
-	
-	cerr << "Calculating pagerank..." << endl;
-    t.pagerank();
-    cerr << "Done calculating!" << endl;
-    
-    return 0;
+	return 0;
 }

@@ -16,30 +16,63 @@
 
 #include "./include/mapreduce.hpp"
 #include <iostream>
+#define print(x) std::cout<<x<<endl;
+#define MAP_TYPE map<int, vector<int>>
+using namespace std;
+
+map<int, vector<int>> graph;
+float pr[1000];
+int max_node_num;
+
+// void update_graph(vector<char> v){
+//     for(int i=0;i<v.size();i+=4){
+//         int a, b;
+//         cout<<v[i]<<" YYYY "<<endl;
+//         a = int(v[i]-'0');
+//         b = int(v[i+2]-'0');
+//         graph[a].push_back(b);
+//     }
+// }
+
+void print_graph(map<int, vector<int> > graph){
+    for(auto itr = graph.begin(); itr!=graph.end(); itr++){
+        cout<<itr->first<<": [";
+        for(int i=0;i<itr->second.size();i++){
+            cout<<itr->second[i]<<", ";
+        }
+        cout<<"]"<<endl;
+    }
+}
+
+void print_pr(){
+    for(int i=0;i<max_node_num;i++){
+        print(pr[i]);
+    }
+}
 
 namespace prime_calculator {
 
-bool const is_prime(long const number)
-{
-    if (number > 2)
-    {
-        if (number % 2 == 0)
-            return false;
+// bool const is_prime(long const number)
+// {
+//     if (number > 2)
+//     {
+//         if (number % 2 == 0)
+//             return false;
 
-        long const n = std::abs(number);
-        long const sqrt_number = static_cast<long>(std::sqrt(static_cast<double>(n)));
+//         long const n = std::abs(number);
+//         long const sqrt_number = static_cast<long>(std::sqrt(static_cast<double>(n)));
 
-        for (long i = 3; i < sqrt_number; i+=2)
-        {
-            if (n % i == 0)
-                return false;
-        }
-    }
-    else if (number == 0 || number == 1)
-        return false;
+//         for (long i = 3; i < sqrt_number; i+=2)
+//         {
+//             if (n % i == 0)
+//                 return false;
+//         }
+//     }
+//     else if (number == 0 || number == 1)
+//         return false;
     
-    return true;
-}
+//     return true;
+// }
 
 template<typename MapTask>
 class number_source : mapreduce::detail::noncopyable
@@ -48,11 +81,13 @@ class number_source : mapreduce::detail::noncopyable
     number_source(long first, long last, long step)
       : sequence_(0), first_(first), last_(last), step_(step)
     {
+        // print("HEy");
     }
 
     bool const setup_key(typename MapTask::key_type &key)
     {
         key = sequence_++;
+        print("setup_key called"<<key<<" x "<<step_<<" x "<<last_);
         return (key * step_ <= last_);
     }
 
@@ -62,7 +97,7 @@ class number_source : mapreduce::detail::noncopyable
 
         val.first  = first_ + (key * step_);
         val.second = std::min(val.first + step_ - 1, last_);
-
+        cerr<<"VAL1: ["<<val.first<<", "<<val.second<<"]"<<endl;
         std::swap(val, value);
         return true;
     }
@@ -74,23 +109,40 @@ class number_source : mapreduce::detail::noncopyable
     long const first_;
 };
 
-struct map_task : public mapreduce::map_task<long, std::pair<long, long> >
+struct map_task : public mapreduce::map_task<int, pair<int, int> >
 {
     template<typename Runtime>
-    void operator()(Runtime &runtime, key_type const &/*key*/, value_type const &value) const
+    void operator()(Runtime &runtime, key_type const /*&key*/, value_type const &value) const
     {
-        for (key_type loop=value.first; loop<=value.second; ++loop)
-            runtime.emit_intermediate(is_prime(loop), loop);
+        print("VAL2: ["<<value.first<<" "<<value.second<<"]");
+        for(int i=value.first;i<=value.second;i++){
+            MAP_TYPE::iterator it = graph.find(i);
+            if(it==graph.end()){
+                print(i<<" ERROR LAYA");
+                exit(1);
+            }
+            vector<int> l = it->second;
+            for(int j=0;j<l.size();j++){
+                if(l[i]==-1){continue;}
+                print("EMIT: {   "<<l[i]<<" | "<<pr[i]/l.size()<<"   }");
+                runtime.emit_intermediate(l[i], pr[i]/l.size());
+            }        
+        }
     }
 };
 
-struct reduce_task : public mapreduce::reduce_task<bool, long>
+struct reduce_task : public mapreduce::reduce_task<int, float>
 {
     template<typename Runtime, typename It>
     void operator()(Runtime &runtime, key_type const &key, It it, It ite) const
     {
-        if (key)
-            std::for_each(it, ite, std::bind(&Runtime::emit, &runtime, true, std::placeholders::_1));
+        value_type sum = 0;
+        for(auto itr=it;itr!=ite;itr++){
+            sum += *itr;
+        }
+        print("SUM: $$ "<<sum<<" $$");
+        pr[key] = 0.15 + 0.85*(sum);
+        // return;
     }
 };
 
@@ -105,11 +157,52 @@ mapreduce::job<prime_calculator::map_task,
 
 int main(int argc, char *argv[])
 {
+    
+
     mapreduce::specification spec;
 
-    int prime_limit = 10000;
+    string filename = "diamond.txt";
     if (argc > 1)
-        prime_limit = std::max(1, atoi(argv[1]));
+        filename = string(argv[1]);
+
+    // Reading file
+    ifstream fin;
+    fin.open(filename);
+    int max_node_num = 0;
+    int maxs = 0;
+    if(fin){
+        int s;
+        while(fin>>s){
+            int b;
+            fin>>b;
+            graph[s].push_back(b);
+            if(s>maxs){
+                maxs = s;
+            }
+            if(max_node_num<b){
+                max_node_num = b;
+            }
+            if(max_node_num<s){
+                max_node_num = s;
+            }
+        }
+    }
+    for(int i=maxs+1;i<=max_node_num;i++){
+        graph[i].push_back(-1);
+    }
+
+    print_graph(graph);
+    // print(max_node_num);
+
+    print("PAGERANK BEFORE OPERATIONs-->");
+
+    for(int i=0;i<=max_node_num;i++){
+        pr[i] = 0.15;
+    }
+    
+    for(int i=0;i<=max_node_num;i++){
+        print(i<<": "<<pr[i]);
+    }
 
     if (argc > 2)
         spec.map_tasks = std::max(1, atoi(argv[2]));
@@ -121,17 +214,24 @@ int main(int argc, char *argv[])
         reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
     spec.reduce_tasks = reduce_tasks;
 
-    prime_calculator::job::datasource_type datasource(0, prime_limit, prime_limit/reduce_tasks);
+    print("SPREC: "<<max_node_num<<" "<<max_node_num/reduce_tasks);
+    prime_calculator::job::datasource_type number_source(0, max_node_num, max_node_num/reduce_tasks);
 
-    std::cout <<"\nCalculating Prime Numbers in the range 0 .. " << prime_limit << " ..." <<std::endl;
-    prime_calculator::job job(datasource, spec);
+    std::cout <<"\nCalculating Page rank " << filename << " ..." <<std::endl;
+    prime_calculator::job job(number_source, spec);
     mapreduce::results result;
+
+
 #ifdef _DEBUG
     job.run<mapreduce::schedule_policy::sequential<prime_calculator::job> >(result);
 #else
     job.run<mapreduce::schedule_policy::cpu_parallel<prime_calculator::job> >(result);
 #endif
     std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
+
+    for(int i=0;i<=max_node_num;i++){
+        print(i<<" "<<pr[i]);
+    }
 
     for (auto it=job.begin_results(); it!=job.end_results(); ++it)
         std::cout << it->second <<" ";
