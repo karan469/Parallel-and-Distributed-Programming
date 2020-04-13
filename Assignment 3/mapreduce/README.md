@@ -2,7 +2,8 @@ Pagerank using MapReduce Library
 =
 
 ```
-	./run.sh prime; ./prime.o {filename} {map task} {reduce task} {iteration number}
+	./run.sh prime; 
+	./prime.o {filename} {map task} {reduce task} {iteration number}
 ```
 
 MapReduce C++ Library
@@ -83,24 +84,5 @@ The library is designed to be extensible and configurable through a Policy-based
 | `SortFn` | `local_disk` template parameter | `external_file_sort` |
 | `MergeFn` | `local_disk` template parameter | `external_file_merge` |
 | `SchedulePolicy` | `mapreduce::job::run()` template parameter | `cpu_parallel`, `sequential` |
-
-Datasource
--
-This policy implements a data provider for Map Tasks. The default implementation iterates a given directory and feeds each Map Task with a `Filename` and `std::ifstream` to the open file as a key/value pair.
-Combiner
--
-A *Combiner* is an optimization technique, originally designed to reduce network traffic by applying a local reduction of intermediate key/value pairs in the Map phase before being passed to the Reduce phase. The combiner is optional, and can actually degrade performance on a single machine implementation due to the additional file sorting that is required. The default is therefore a null_combiner which does nothing.
-IntermediateStore
--
-The policy class implements the behavior for storing, sorting and merging intermediate results between the Map and Reduce phases. The default implementation uses temporary files on the local file system.
-SortFn
--
-Used to sort external intermediate files. Current default implementation uses a `system()` call to shell out to the operating system SORT process. A Merge Sort implementation is currently in development.
-MergeFn
--
-Used to merge external intermediate files. Current default implementation uses a system() call to shell out to the operating system `COPY` process (Win32 only). A platform independent in-process implementation is required.
-SchedulePolicy
--
-This policy is the core of the scheduling algorithm and runs the Map and Reduce Tasks. Two schedule policies are supplied, `cpu_parallel` uses the maximum available CPU cores to run as many map simultaneous tasks as possible (within a limit given in the `mapreduce::specification` object). The sequential scheduler will run one map task followed by one reduce task, which is useful for debugging purposes.
 
 See the [MapReduce C++ Library](http://cdmh.co.uk/papers/software_scalability_mapreduce/library.php) page for more information, and a sample program.
