@@ -171,15 +171,14 @@ int main(int argc, char *argv[])
         pr[i] = (1-alpha)/max_node_num;
     }
 
-    if (argc > 2)
-        spec.map_tasks = std::max(1, atoi(argv[2]));
-
-    int reduce_tasks;
-    if (argc > 3)
-        reduce_tasks = atoi(argv[3]);
-    else
-        reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
-    
+    // if (argc > 2)
+    //     spec.map_tasks = std::max(1, atoi(argv[2]));
+    spec.map_tasks = 4;
+    int reduce_tasks = 2;
+    // if (argc > 3)
+    //     reduce_tasks = atoi(argv[3]);
+    // else
+    //     reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
     spec.reduce_tasks = reduce_tasks;
     pagerank::job::datasource_type number_source(0, max_node_num, (max_node_num+1)/reduce_tasks);
     

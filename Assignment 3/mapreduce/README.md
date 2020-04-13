@@ -1,9 +1,11 @@
 Pagerank using MapReduce Library
 =
 
+map_tasks and reduce_tasks is set by developer equal to 4 and 4.
+
 ```
-	./run.sh prime; 
-	./prime.o {filename} {map task} {reduce task} {iteration number}
+	./run.sh mr-pr-cpp; 
+	./mr-pr-cpp.o {filename}.txt > {filename}-mr-cpp.txt
 ```
 
 MapReduce C++ Library
