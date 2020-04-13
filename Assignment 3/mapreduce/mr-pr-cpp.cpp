@@ -1,77 +1,228 @@
-#include <bits/stdc++.h>
-#include "./include/mapreduce.hpp"
 #include <boost/config.hpp>
-#include <fstream>
-#include<stdlib.h>
-#include <stdio.h>
-#define print(x) std::cout<<x<<'\n'
-#define min(x, y) -1?x<y:1
-#define DAMPING_FACTOR 0.85
+#if defined(BOOST_MSVC)
+#   pragma warning(disable: 4127)
 
+// turn off checked iterators to avoid performance hit
+#   if !defined(__SGI_STL_PORT)  &&  !defined(_DEBUG)
+#       define _SECURE_SCL 0
+#       define _HAS_ITERATOR_DEBUGGING 0
+#   endif
+#endif
+
+#include "./include/mapreduce.hpp"
+#include <iostream>
+#define print(x) std::cout<<x<<endl;
+#define MAP_TYPE map<int, vector<int>>
+#define ACC_TOLERANCE 0.000001
+#define MAX_ITERATIONS 10000
+#define alpha 0.85
 using namespace std;
 
-map<int, float> pr;
-vector<pair<int, vector<int> > > graph;
+map<int, vector<int>> graph;
+float pr[1000];
+int max_node_num=2;
 
-// void calc_pagerank()
-void init_pr(int start, int end){
-	pr.clear();
-	for(int i=start;i<=end;i++){
-		pr.insert({i, 0.18});
-	}
-}
-
-void init_graph(int start, int end){
-	srand(time(0));
-	for(int i=start;i<=end;i++){
-		int a = start + ( std::rand() % ( end/2 - start + 1 ) );
-		int b = end/2 + ( std::rand() % ( end - end/2 + 1 ) );
-		vector<int> outlinks;
-		for(int j=a;j<=b;j++){
-			outlinks.push_back(j);
-		}
-		graph.push_back({i, outlinks});
-	}
-}
-
-void print_int_vector(vector<int> vec){
-	for(int i=0;i<vec.size();i++){
-		cout<<vec[i]<<" ";
-	}
-	cout<<endl;
+void print_graph(map<int, vector<int> > graph){
+    for(auto itr = graph.begin(); itr!=graph.end(); itr++){
+        cout<<itr->first<<": [";
+        for(int i=0;i<itr->second.size();i++){
+            cout<<itr->second[i]<<", ";
+        }
+        cout<<"]"<<endl;
+    }
 }
 
 void print_pr(){
-	print("--- Printing Page Ranks ---");
-	for(auto itr = pr.begin(); itr!=pr.end(); itr++){
-		cout<<itr->first<<": "<<itr->second<<endl;
-	}
+    for(int i=0;i<max_node_num;i++){
+        print(pr[i]);
+    }
 }
 
-void print_graph(){
-	print("--- Printing Graphs ---");
-	for(int i=0;i<graph.size();i++){
-		cout<<graph[i].first<<": "<<endl;
-		print_int_vector(graph[i].second);
-	}
-}
+namespace pagerank {
 
-void pr_calculate(){
-	for(int i=0;i<graph.size();i++){
-		vector<int> outlinks = graph.second;
-		int node_num = graph.first;
-		auto map<int, float>::iterator itr = pr.find(node_num);
-		float sum = (1-DAMPING_FACTOR)
-	}
-}
-
-int main(int argc, char const *argv[])
+template<typename MapTask>
+class number_source : mapreduce::detail::noncopyable
 {
-	init_pr(1, 10);
-	print_pr();
-	init_graph(1, 10);
-	print_graph();
-	print("Hello world");
-	
+  public:
+    number_source(long first, long last, long step)
+      : sequence_(0), first_(first), last_(last), step_(step)
+    {
+
+    }
+
+    bool const setup_key(typename MapTask::key_type &key)
+    {
+        key = sequence_++;
+        // print("setup_key called "<<key<<" x "<<step_<<" x "<<last_<<" "<<"should proceed? "<<(key * step_ <= last_));
+        return (key * step_ <= last_);
+    }
+
+    bool const get_data(typename MapTask::key_type const &key, typename MapTask::value_type &value)
+    {
+        typename MapTask::value_type val;
+
+        val.first  = first_ + (key * step_);
+        val.second = std::min(val.first + step_ - 1, last_);
+        // cerr<<"VAL1: ["<<val.first<<", "<<val.second<<"]"<<endl;
+        std::swap(val, value);
+        return true;
+    }
+
+  private:
+    long       sequence_;
+    long const step_;
+    long const last_;
+    long const first_;
+};
+
+struct map_task : public mapreduce::map_task<int, pair<int, int> >
+{
+    template<typename Runtime>
+    void operator()(Runtime &runtime, key_type const /*&key*/, value_type const &value) const
+    {
+        // print("VAL2: ["<<value.first<<" "<<value.second<<"]");
+        for(int i=value.first;i<=value.second;i++){
+            MAP_TYPE::iterator it = graph.find(i);
+            if(it==graph.end()){
+                print(i<<" ERROR");
+                exit(1);
+            }
+            vector<int> l = it->second;
+            if(l.size()==0) continue;
+            for(int j=0;j<l.size();j++){
+                if(l[j]==-1){continue;}
+                // print("EMIT: {   "<<l[j]<<" | "<<pr[i]/l.size()<<"   }");
+                if(l[j]>max_node_num) {print("HUSH "<<l[j]<<" "<<max_node_num); continue;}
+                assert(l[j]<=max_node_num);
+                assert(l[j]!=-1);
+                runtime.emit_intermediate(l[j], pr[j]/l.size());
+            }        
+        }
+    }
+};
+
+struct reduce_task : public mapreduce::reduce_task<int, float>
+{
+    template<typename Runtime, typename It>
+    void operator()(Runtime &runtime, key_type const &key, It it, It ite) const
+    {
+        value_type sum = 0;
+        // print("In reduce task: "<<key);
+        for(auto itr=it;itr!=ite;itr++){
+            // print(*itr);
+            sum += *itr;
+        }
+        assert(key<=max_node_num);
+        pr[key] = (1-alpha)/max_node_num + alpha*(sum);
+        runtime.emit(key, ((1-alpha) + alpha*(sum)));
+    }
+};
+
+typedef
+mapreduce::job<pagerank::map_task,
+               pagerank::reduce_task,
+               mapreduce::null_combiner,
+               pagerank::number_source<pagerank::map_task>
+> job;
+
+} // namespace pagerank
+
+int main(int argc, char *argv[])
+{
+    mapreduce::specification spec;
+
+    string filename = "diamond.txt";
+    if (argc > 1)
+        filename = string(argv[1]);
+
+    // Reading file
+    ifstream fin;
+    fin.open(filename);
+    int max_node_num = 0;
+    int maxs = 0;
+    if(fin){
+        int s;
+        while(fin>>s){
+            int b;
+            fin>>b;
+            graph[s].push_back(b);
+            if(s>maxs){
+                maxs = s;
+            }
+            if(max_node_num<b){
+                max_node_num = b;
+            }
+            if(max_node_num<s){
+                max_node_num = s;
+            }
+        }
+    }
+    // File reading end
+
+    print("max_node_num: "<<max_node_num);
+
+    for(int i=0;i<=max_node_num;i++){
+        if(graph.find(i)==graph.end()) graph[i].push_back(-1);
+    }
+
+    print_graph(graph);
+
+    for(int i=0;i<=max_node_num;i++){
+        pr[i] = (1-alpha)/max_node_num;
+    }
+
+    if (argc > 2)
+        spec.map_tasks = std::max(1, atoi(argv[2]));
+
+    int reduce_tasks;
+    if (argc > 3)
+        reduce_tasks = atoi(argv[3]);
+    else
+        reduce_tasks = std::max(1U, std::thread::hardware_concurrency());
+    
+    spec.reduce_tasks = reduce_tasks;
+    pagerank::job::datasource_type number_source(0, max_node_num, (max_node_num+1)/reduce_tasks);
+    
+    std::cout <<"\nCalculating Page rank " << filename << " ..." <<std::endl;
+    
+    pagerank::job job(number_source, spec);
+    mapreduce::results result;
+
+    // main ops started
+    float last_sum = 0;
+    int iter = 0;
+    float sum_all_pr = 0;
+
+    while((sum_all_pr-last_sum)*(sum_all_pr-last_sum) > ACC_TOLERANCE || iter<MAX_ITERATIONS)
+    {
+        iter += 1;
+        #ifdef _DEBUG
+            job.run<mapreduce::schedule_policy::sequential<pagerank::job> >(result);
+        #else
+            job.run<mapreduce::schedule_policy::cpu_parallel<pagerank::job> >(result);
+        #endif
+
+        sum_all_pr = 0;
+        for(int k=0;k<=max_node_num;k++){
+            sum_all_pr += pr[k];
+        }
+        if((sum_all_pr-last_sum)*(sum_all_pr-last_sum) < ACC_TOLERANCE){break;}
+        last_sum = sum_all_pr;
+    }
+
+    std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
+    print("Num of Iterations: "<<iter);
+    
+    for(int i=0;i<=max_node_num;i++){
+        print(i<<" = "<<pr[i]/last_sum);
+    }
+    
+    float temp = 0;
+    for(int k=0;k<=max_node_num;k++){
+        temp += pr[k]/last_sum;
+    }
+    
+    print("s = "<<temp);
+
 	return 0;
 }
