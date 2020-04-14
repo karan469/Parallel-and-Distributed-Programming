@@ -13,14 +13,14 @@
 #include <iostream>
 #define print(x) std::cout<<x<<endl;
 #define MAP_TYPE map<int, vector<int>>
-#define ACC_TOLERANCE 0.000001
+#define ACC_TOLERANCE 0.0001
 #define MAX_ITERATIONS 10000
 #define alpha 0.85
 using namespace std;
 
 map<int, vector<int>> graph;
 float pr[1000];
-int max_node_num=9999;
+int max_node_num=19;
 
 void print_graph(map<int, vector<int> > graph){
     for(auto itr = graph.begin(); itr!=graph.end(); itr++){
@@ -188,12 +188,21 @@ int main(int argc, char *argv[])
     mapreduce::results result;
 
     // main ops started
-    float last_sum = 0;
     int iter = 0;
     float sum_all_pr = 0;
+    
+    float old_pr[max_node_num+1];
+    for(int i=0;i<=max_node_num;i++){
+        old_pr[i] = 0.15;
+    }
+    float suma = 1e5;
 
-    while((sum_all_pr-last_sum)*(sum_all_pr-last_sum) > ACC_TOLERANCE || iter<MAX_ITERATIONS)
+    while((abs(suma)>ACC_TOLERANCE) && iter<MAX_ITERATIONS)
     {
+        // for(int k=0;k<=max_node_num;k++){
+        //     print(k<<": "<<old_pr[k]);
+        // }
+
         iter += 1;
         #ifdef _DEBUG
             job.run<mapreduce::schedule_policy::sequential<pagerank::job> >(result);
@@ -201,24 +210,32 @@ int main(int argc, char *argv[])
             job.run<mapreduce::schedule_policy::cpu_parallel<pagerank::job> >(result);
         #endif
 
-        sum_all_pr = 0;
+        suma = 0;
         for(int k=0;k<=max_node_num;k++){
-            sum_all_pr += pr[k];
+            suma += (old_pr[k]-pr[k]);
         }
-        if((sum_all_pr-last_sum)*(sum_all_pr-last_sum) < ACC_TOLERANCE){break;}
-        last_sum = sum_all_pr;
+
+        for(int k=0;k<=max_node_num;k++){
+            old_pr[k] = pr[k];
+        }
+
+        // print(suma);
+        // print("========");
     }
 
     std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
     print("Num of Iterations: "<<iter);
-    
+    float last_sum = 0;
     for(int i=0;i<=max_node_num;i++){
-        print(i<<" = "<<pr[i]/last_sum);
+        last_sum += old_pr[i];
+    }
+    for(int i=0;i<=max_node_num;i++){
+        print(i<<" = "<<old_pr[i]/last_sum);
     }
     
     float temp = 0;
     for(int k=0;k<=max_node_num;k++){
-        temp += pr[k]/last_sum;
+        temp += old_pr[k]/last_sum;
     }
     
     print("s = "<<temp);
