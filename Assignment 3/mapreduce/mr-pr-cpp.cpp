@@ -1,7 +1,7 @@
 #include <boost/config.hpp>
 #if defined(BOOST_MSVC)
 #   pragma warning(disable: 4127)
-
+// #define _DEBUG true
 // turn off checked iterators to avoid performance hit
 #   if !defined(__SGI_STL_PORT)  &&  !defined(_DEBUG)
 #       define _SECURE_SCL 0
@@ -20,7 +20,7 @@ using namespace std;
 
 map<int, vector<int>> graph;
 float pr[1000];
-int max_node_num=2;
+int max_node_num=9999;
 
 void print_graph(map<int, vector<int> > graph){
     for(auto itr = graph.begin(); itr!=graph.end(); itr++){
