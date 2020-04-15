@@ -1,7 +1,7 @@
 #include <boost/config.hpp>
 #if defined(BOOST_MSVC)
 #   pragma warning(disable: 4127)
-// #define _DEBUG true
+
 // turn off checked iterators to avoid performance hit
 #   if !defined(__SGI_STL_PORT)  &&  !defined(_DEBUG)
 #       define _SECURE_SCL 0
@@ -13,14 +13,14 @@
 #include <iostream>
 #define print(x) std::cout<<x<<endl;
 #define MAP_TYPE map<int, vector<int>>
-#define ACC_TOLERANCE 0.0001
+#define ACC_TOLERANCE 0.01
 #define MAX_ITERATIONS 10000
 #define alpha 0.85
 using namespace std;
 
 map<int, vector<int>> graph;
 float pr[1000];
-int max_node_num=19;
+int max_node_num=3;
 
 void print_graph(map<int, vector<int> > graph){
     for(auto itr = graph.begin(); itr!=graph.end(); itr++){
@@ -53,7 +53,6 @@ class number_source : mapreduce::detail::noncopyable
     bool const setup_key(typename MapTask::key_type &key)
     {
         key = sequence_++;
-        // print("setup_key called "<<key<<" x "<<step_<<" x "<<last_<<" "<<"should proceed? "<<(key * step_ <= last_));
         return (key * step_ <= last_);
     }
 
@@ -63,7 +62,6 @@ class number_source : mapreduce::detail::noncopyable
 
         val.first  = first_ + (key * step_);
         val.second = std::min(val.first + step_ - 1, last_);
-        // cerr<<"VAL1: ["<<val.first<<", "<<val.second<<"]"<<endl;
         std::swap(val, value);
         return true;
     }
@@ -80,7 +78,7 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
     template<typename Runtime>
     void operator()(Runtime &runtime, key_type const /*&key*/, value_type const &value) const
     {
-        // print("VAL2: ["<<value.first<<" "<<value.second<<"]");
+        print("Input Value to map_task: ("<<value.first<<", "<<value.second<<")");
         for(int i=value.first;i<=value.second;i++){
             MAP_TYPE::iterator it = graph.find(i);
             if(it==graph.end()){
@@ -88,13 +86,20 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
                 exit(1);
             }
             vector<int> l = it->second;
+            
             if(l.size()==0) continue;
+            
             for(int j=0;j<l.size();j++){
+                
                 if(l[j]==-1){continue;}
-                // print("EMIT: {   "<<l[j]<<" | "<<pr[i]/l.size()<<"   }");
-                if(l[j]>max_node_num) {print("HUSH "<<l[j]<<" "<<max_node_num); continue;}
+
+                // if(l[j]>max_node_num) {print("HUSH "<<l[j]<<" "<<max_node_num); continue;}
+                
                 assert(l[j]<=max_node_num);
                 assert(l[j]!=-1);
+                
+                print("Output from map_task: Key="<<l[j]<<", Value="<<pr[j]/l.size());
+                
                 runtime.emit_intermediate(l[j], pr[j]/l.size());
             }        
         }
@@ -107,14 +112,17 @@ struct reduce_task : public mapreduce::reduce_task<int, float>
     void operator()(Runtime &runtime, key_type const &key, It it, It ite) const
     {
         value_type sum = 0;
-        // print("In reduce task: "<<key);
+        cout<<"Input to reduce_task: Key="<<key<<" Value = [";
         for(auto itr=it;itr!=ite;itr++){
-            // print(*itr);
+            cout<<*itr;
             sum += *itr;
         }
+        cout<<"]\n";
         assert(key<=max_node_num);
-        pr[key] = (1-alpha)/max_node_num + alpha*(sum);
-        runtime.emit(key, ((1-alpha) + alpha*(sum)));
+        // assert(key!=0);
+        pr[key] = (1-alpha)/(max_node_num+1) + alpha*(sum);
+        cout<<"Output from reduce_task: Key = "<<key<<", Value="<<pr[key]<<endl;
+        runtime.emit(key, ((1-alpha)/(max_node_num+1) + alpha*(sum)));
     }
 };
 
@@ -168,12 +176,12 @@ int main(int argc, char *argv[])
     print_graph(graph);
 
     for(int i=0;i<=max_node_num;i++){
-        pr[i] = (1-alpha)/max_node_num;
+        pr[i] = (1-alpha)/(max_node_num+1);
     }
 
     // if (argc > 2)
     //     spec.map_tasks = std::max(1, atoi(argv[2]));
-    spec.map_tasks = 4;
+    spec.map_tasks = 2;
     int reduce_tasks = 2;
     // if (argc > 3)
     //     reduce_tasks = atoi(argv[3]);
