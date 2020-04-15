@@ -13,13 +13,13 @@
 #include <iostream>
 #define print(x) std::cout<<x<<endl;
 #define MAP_TYPE map<int, vector<int>>
-#define ACC_TOLERANCE 0.01
+#define ACC_TOLERANCE 0.0001
 #define MAX_ITERATIONS 10000
-#define alpha 0.85
+#define alpha 0.5
 using namespace std;
 
 map<int, vector<int>> graph;
-float pr[1000];
+double pr[1000000];
 int max_node_num=3;
 
 void print_graph(map<int, vector<int> > graph){
@@ -33,9 +33,30 @@ void print_graph(map<int, vector<int> > graph){
 }
 
 void print_pr(){
-    for(int i=0;i<max_node_num;i++){
-        print(pr[i]);
+    print("========================");
+    for(int i=0;i<=max_node_num;i++){
+        print(i<<": "<<pr[i]);
     }
+    
+}
+
+string check_pr_status(double *old_pr){
+    for(auto itr = graph.begin();itr!=graph.end();itr++){
+        int node = itr->first;
+        vector<int> outlinks = itr->second;
+        double sum = 0;
+        for(int i=0;i<outlinks.size();i++){
+            if(outlinks[i]==-1) continue;
+            auto it = graph.find(outlinks[i]);
+            print(outlinks[i])
+            assert(it!=graph.end());
+            sum += old_pr[outlinks[i]]/(it->second.size());
+        }
+        sum = alpha*sum + (1-alpha)/(max_node_num+1);
+        cout<<"[Node: "<<node<<"]"<<"Calculated now: "<<sum<<", In Table: "<<old_pr[node]<<endl;
+        if(abs(sum-pr[node])>0.001){return "false";}
+    }
+    return "true";
 }
 
 namespace pagerank {
@@ -78,7 +99,7 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
     template<typename Runtime>
     void operator()(Runtime &runtime, key_type const /*&key*/, value_type const &value) const
     {
-        print("Input Value to map_task: ("<<value.first<<", "<<value.second<<")");
+        // print("Input Value to map_task: ("<<value.first<<", "<<value.second<<")");
         for(int i=value.first;i<=value.second;i++){
             MAP_TYPE::iterator it = graph.find(i);
             if(it==graph.end()){
@@ -91,14 +112,13 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
             
             for(int j=0;j<l.size();j++){
                 
-                if(l[j]==-1){continue;}
+                if(l[j]==-1){break;}
 
                 // if(l[j]>max_node_num) {print("HUSH "<<l[j]<<" "<<max_node_num); continue;}
                 
                 assert(l[j]<=max_node_num);
-                assert(l[j]!=-1);
                 
-                print("Output from map_task: Key="<<l[j]<<", Value="<<pr[j]/l.size());
+                // print("Output from map_task: Key="<<l[j]<<", Value="<<pr[j]/l.size());
                 
                 runtime.emit_intermediate(l[j], pr[j]/l.size());
             }        
@@ -106,23 +126,27 @@ struct map_task : public mapreduce::map_task<int, pair<int, int> >
     }
 };
 
-struct reduce_task : public mapreduce::reduce_task<int, float>
+struct reduce_task : public mapreduce::reduce_task<int, double>
 {
     template<typename Runtime, typename It>
     void operator()(Runtime &runtime, key_type const &key, It it, It ite) const
     {
         value_type sum = 0;
-        cout<<"Input to reduce_task: Key="<<key<<" Value = [";
+        // cout<<"Input to reduce_task: Key="<<key<<" Value = [";
         for(auto itr=it;itr!=ite;itr++){
-            cout<<*itr;
+            // cout<<*itr;
             sum += *itr;
         }
-        cout<<"]\n";
+        // print(sum);
+        // cout<<"]\n";
         assert(key<=max_node_num);
+        
         // assert(key!=0);
-        pr[key] = (1-alpha)/(max_node_num+1) + alpha*(sum);
-        cout<<"Output from reduce_task: Key = "<<key<<", Value="<<pr[key]<<endl;
-        runtime.emit(key, ((1-alpha)/(max_node_num+1) + alpha*(sum)));
+        pr[key] = (1-alpha) + alpha*(sum);
+        // print("set for "<<key);
+        // cout<<"Output from reduce_task: Key = "<<key<<", Value="<<double((1-alpha) + alpha*(sum))<<endl;
+        
+        runtime.emit(key, ((1-alpha)+ alpha*(sum)));
     }
 };
 
@@ -146,7 +170,7 @@ int main(int argc, char *argv[])
     // Reading file
     ifstream fin;
     fin.open(filename);
-    int max_node_num = 0;
+    max_node_num = 0;
     int maxs = 0;
     if(fin){
         int s;
@@ -167,22 +191,22 @@ int main(int argc, char *argv[])
     }
     // File reading end
 
-    print("max_node_num: "<<max_node_num);
+    // print("max_node_num: "<<max_node_num);
 
     for(int i=0;i<=max_node_num;i++){
         if(graph.find(i)==graph.end()) graph[i].push_back(-1);
     }
 
-    print_graph(graph);
+    // print_graph(graph);
 
     for(int i=0;i<=max_node_num;i++){
-        pr[i] = (1-alpha)/(max_node_num+1);
+        pr[i] = (1);
     }
 
     // if (argc > 2)
     //     spec.map_tasks = std::max(1, atoi(argv[2]));
-    spec.map_tasks = 2;
-    int reduce_tasks = 2;
+    spec.map_tasks = 1;
+    int reduce_tasks = 1;
     // if (argc > 3)
     //     reduce_tasks = atoi(argv[3]);
     // else
@@ -190,27 +214,25 @@ int main(int argc, char *argv[])
     spec.reduce_tasks = reduce_tasks;
     pagerank::job::datasource_type number_source(0, max_node_num, (max_node_num+1)/reduce_tasks);
     
-    std::cout <<"\nCalculating Page rank " << filename << " ..." <<std::endl;
+    // std::cout <<"\nCalculating Page rank " << filename << " ..." <<std::endl;
     
     pagerank::job job(number_source, spec);
     mapreduce::results result;
 
     // main ops started
     int iter = 0;
-    float sum_all_pr = 0;
+    double sum_all_pr = 0;
     
-    float old_pr[max_node_num+1];
+    double old_pr[max_node_num+1];
     for(int i=0;i<=max_node_num;i++){
-        old_pr[i] = 0.15;
+        old_pr[i] = 1;
     }
-    float suma = 1e5;
-
+    double suma = 1e5;
+    // print("HOLA");
+    // print_pr();
     while((abs(suma)>ACC_TOLERANCE) && iter<MAX_ITERATIONS)
+    // for(int i=0;i<12;i++)
     {
-        // for(int k=0;k<=max_node_num;k++){
-        //     print(k<<": "<<old_pr[k]);
-        // }
-
         iter += 1;
         #ifdef _DEBUG
             job.run<mapreduce::schedule_policy::sequential<pagerank::job> >(result);
@@ -218,6 +240,13 @@ int main(int argc, char *argv[])
             job.run<mapreduce::schedule_policy::cpu_parallel<pagerank::job> >(result);
         #endif
 
+        for (auto it=job.begin_results(); it!=job.end_results(); ++it){
+            // print(it->first);
+            pr[it->first] = it->second;
+        }
+
+        // print_pr();
+        
         suma = 0;
         for(int k=0;k<=max_node_num;k++){
             suma += (old_pr[k]-pr[k]);
@@ -227,26 +256,22 @@ int main(int argc, char *argv[])
             old_pr[k] = pr[k];
         }
 
-        // print(suma);
-        // print("========");
+        // cout<<check_pr_status(old_pr)<<endl;
     }
 
-    std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
-    print("Num of Iterations: "<<iter);
-    float last_sum = 0;
+    // std::cout <<"\nMapReduce finished in " << result.job_runtime.count() << " with " << std::distance(job.begin_results(), job.end_results()) << " results" << std::endl;
+    // print("Num of Iterations: "<<iter);
+    
+    double last_sum = 0;
     for(int i=0;i<=max_node_num;i++){
         last_sum += old_pr[i];
     }
+
     for(int i=0;i<=max_node_num;i++){
-        print(i<<" = "<<old_pr[i]/last_sum);
+        print(i<<" = "<<pr[i]);
     }
     
-    float temp = 0;
-    for(int k=0;k<=max_node_num;k++){
-        temp += old_pr[k]/last_sum;
-    }
-    
-    print("s = "<<temp);
+    print("s = "<<last_sum);
 
 	return 0;
 }
