@@ -1,5 +1,5 @@
 #include "mpi.h"
-#include <bits/stdc++.h>
+#include "stdc++.h"
 #include<unordered_map>
 #define BUFSIZE INT_MAX
 #define comm MPI_COMM_WORLD
