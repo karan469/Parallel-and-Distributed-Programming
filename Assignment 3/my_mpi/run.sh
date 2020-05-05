@@ -1,1 +1,0 @@
-make compile ; make run
