@@ -1,0 +1,13 @@
+max_node_num: 2
+0: [1, ]
+1: [2, ]
+2: [1, ]
+
+Calculating Page rank me.txt ...
+
+MapReduce finished in 0.00025 with 2 results
+Num of Iterations: 36
+0 = 0.0390831
+1 = 0.48075
+2 = 0.480637
+s = 1.00047
