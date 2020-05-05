@@ -15,6 +15,7 @@
 #define ACC_TOLERANCE 0.0001
 #define MAX_ITERATIONS 1000
 #define alpha 0.85
+using namespace std::chrono;
 using namespace std;
 
 map<int, vector<int>> graph;
@@ -188,7 +189,7 @@ int main(int argc, char *argv[])
     }
 
     // Reading file
-    print("File reading starts: "<<filename);
+    // print("File reading starts: "<<filename);
     ifstream fin;
     fin.open(filename);
     max_node_num = 0;
@@ -213,8 +214,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    print("File ready");
-    // File reading end
+    // print("File ready");
 
     for(int i=0;i<=max_node_num;i++){
         if(graph.find(i)==graph.end()) graph[i].push_back(-1);
@@ -222,16 +222,16 @@ int main(int argc, char *argv[])
 
     // print(max_node_num);
 
-    print("Performing pre-processing");
+    // print("Performing pre-processing");
     for(int i=0;i<max_node_num+1;i++){
 
       // Printing the pre-processing status
-      if((int)((i+1)/(size+1)*100)%5==0){
-        print((float)(i+1)/(max_node_num+1)*100<<"% pre - processing done.");
-        if((float)(i+1)/(max_node_num+1)*100==50){
-          print("((((( HALFWAY THERE )))))");
-        }
-      }
+      // if((int)((i+1)/(size+1)*100)%5==0){
+      //   print((float)(i+1)/(max_node_num+1)*100<<"% pre - processing done.");
+      //   if((float)(i+1)/(max_node_num+1)*100==50){
+      //     print("((((( HALFWAY THERE )))))");
+      //   }
+      // }
 
       for(int j=0;j<max_node_num+1;j++){
         auto itr = graph.find(j);
@@ -300,8 +300,11 @@ int main(int argc, char *argv[])
         old_pr[i] = (double)(1/(double)(max_node_num+1));
     }
     double suma = 1e5;
+
+    auto start = high_resolution_clock::now();
+
     while((abs(suma)>ACC_TOLERANCE) && iter<MAX_ITERATIONS)
-    // for(int rr=0;rr<atoi(argv[4]);rr++)
+    // for(int rr=0;rr<100;rr++)
     {
         iter += 1;
         // print(iter);
@@ -346,11 +349,15 @@ int main(int argc, char *argv[])
         }
     }
 
+    // print("Num iterations: "<<iter);
+
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<microseconds>(stop - start);
+
     double last_sum = vectorsum(pr, max_node_num+1);
     for(int i=0;i<=max_node_num;i++){
       pr[i] = pr[i]/(double)last_sum;
     }
-    // check_pr_status(pr);
 
     ofstream outfile;
     outfile.open(argv[3]);
@@ -365,5 +372,7 @@ int main(int argc, char *argv[])
     outfile.close();
     // print("Pagerank written successfully");
 
+    // print("** Time of execution = "<<duration.count()/(double)1e6<<" **");
+    print(filename<<", "<<duration.count()/(double)1e6);
     return 0;
 }

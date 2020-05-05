@@ -4,6 +4,7 @@
 #define BUFSIZE INT_MAX
 #define comm MPI_COMM_WORLD
 #define print(x) cout<<x<<"\n";
+using namespace std::chrono;
 using namespace std;
 
 
@@ -161,10 +162,10 @@ int main(int argc, char *argv[]){
 
     unordered_map<int,float> pr_map = pr_init(graph);
 
-    for(int i=0;i<100;i++){
+    auto start = high_resolution_clock::now();
+    for(int i=0;i<60;i++){
         mpi_pr(graph,pr_map,rank,num_processes);
     }
-
 
     if(rank==0){
         multimap<float, int> inverted = invert(pr_map);
@@ -190,10 +191,15 @@ int main(int argc, char *argv[]){
         // cout<<"s = "<<1<<'\n';
         fout<<"s = "<<1<<'\n';
         fout.close();
+        auto stop = high_resolution_clock::now();
+        auto duration = duration_cast<microseconds>(stop - start);
+        // print("** Time of execution = "<<duration.count()/(double)1e6<<" **");
+        print(filename<<", "<<duration.count()/(double)1e6);
     }
 
 	//Ends the MPI environment
 	MPI_Finalize();
 
-    return 0;
+
+  return 0;
 }
