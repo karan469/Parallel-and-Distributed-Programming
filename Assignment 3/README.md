@@ -2,6 +2,7 @@ Description
 ==
 
 This assignment contains 3 parts in which we are calculating pagerank of webpages using mapreduce libraries written in c++ using pthreads and mpi.
+
 Each folder contains script.py to compile and run code and calculate time of execution for each benchmark given in ./test/ folder in each part.
 
 ```
